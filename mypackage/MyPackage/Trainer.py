@@ -375,7 +375,7 @@ class Trainer(object):
 if __name__ == "__main__":
 
     from MyPackage.models import WaveNetContinuosTrainer, RNNTrainer, EncoderDecoderTrainer
-    '''
+
     model = WaveNetContinuosTrainer(data_path='/datadrive/wind_power/wind_all.csv',
                                     logger_path='/home/rneves/temp/temp_logger/',
                                     model_name='Test_EncoderDecoder2',
@@ -383,8 +383,8 @@ if __name__ == "__main__":
                                     valid_log_interval=100,
                                     n_residue=10,
                                     n_skip=20,
-                                    dilation_depth=5,
-                                    n_repeat=1,
+                                    dilation_depth=10,
+                                    n_repeat=2,
                                     number_steps_predict=10,
                                     number_steps_train=250,
                                     lr=0.001,
@@ -428,7 +428,7 @@ if __name__ == "__main__":
                        index_col=['Date and hour'],
                        parse_dates=True)
     '''
-
+    '''
     model = EncoderDecoderTrainer(data_path='/datadrive/wind_power/wind_all.csv',
                                   logger_path='/home/rneves/temp/temp_logger/',
                                   model_name='Test_EncoderDecoder',
@@ -458,8 +458,7 @@ if __name__ == "__main__":
                                   parse_dates=True)
     '''
 
-    print(list(model.model.parameters()))
-    model.train_cv(2, 365, 2)
+    #model.train_cv(2, 365, 2)
     model.train(2)
     model.get_best()
     predictions, labels = model.predict()

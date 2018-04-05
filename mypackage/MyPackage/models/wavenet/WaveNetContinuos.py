@@ -190,10 +190,11 @@ class WaveNetContinuosTrainer(Trainer):
 
             input_size = self.model.calculate_receptive_field(1)
 
-            assert self.number_steps_train > input_size, 'Not Enough values to train'
+            if number_steps_train < input_size:
+                print('changing')
+                self.number_steps_train = input_size
 
             self.output_size = self.model.calculate_output_receptive_field(self.number_steps_train)
-
             self.filelogger.write_metadata(metadata_dict)
 
         # loss function
