@@ -13,8 +13,6 @@ from MyPackage.utils import *
 
 from tensorboardX import SummaryWriter
 
-
-
 class WaveNetModelContinuos(nn.Module):
     def __init__(self, number_features, n_residue=32, n_skip=512, dilation_depth=10, n_repeat=5):
         super(WaveNetModelContinuos, self).__init__()

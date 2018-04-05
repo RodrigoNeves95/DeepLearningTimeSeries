@@ -5,15 +5,17 @@ import pandas as pd
 
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
+SEED = 1337
 
 class DataReader(object):
     def __init__(self,
                  raw_data_path,
                  **kwargs):
 
-        assert os.path.isfile(raw_data_path) is True, 'This file do not exist. Please select an existing file'
-        assert raw_data_path.lower().endswith(('.csv', '.parquet', '.hdf5',
-                                               '.pickle')) is True, 'This class can\'t handle this extension. Please specify a .csv, .parquet, .hdf5, .pickle extension'
+        assert os.path.isfile(raw_data_path) is True, \
+            'This file do not exist. Please select an existing file'
+        assert raw_data_path.lower().endswith(('.csv', '.parquet', '.hdf5', '.pickle')) is True, \
+            'This class can\'t handle this extension. Please specify a .csv, .parquet, .hdf5, .pickle extension'
 
         self.raw_data_path = raw_data_path
         self.loader_engine(**kwargs)
@@ -33,7 +35,10 @@ class DataReader(object):
     def get_length(self):
         return len(self.data)
 
-    def split(self, split1, split2=None, shuffle=False, return_df=False):
+    def split(self,
+              split1,
+              split2=None,
+              return_df=False):
 
         arr = np.arange(self.length)
 
@@ -55,9 +60,13 @@ class DataReader(object):
             else:
                 return arr[:split1], arr[split1:split2], arr[:split2]
 
-    def split_date(self, split_date1=None, split_date2=None, return_df=False):
+    def split_date(self,
+                   split_date1=None,
+                   split_date2=None,
+                   return_df=False):
 
-        assert isinstance(self.data.index, pd.DatetimeIndex), 'Index should be an DatetimeIndex type'
+        assert isinstance(self.data.index, pd.DatetimeIndex), \
+            'Index should be an DatetimeIndex type'
 
         if split_date2 is None:
             validation_split = pd.to_datetime(split_date1)
@@ -162,13 +171,17 @@ class DataReader(object):
         batch_x = None
         batch_y = None
 
-        assert len(self.train_indexes) > self.K - self.N, 'Train length is too small, since its smaller then self.K'
-        assert len(self.train_indexes) > batch_size, 'Reduce batch_size. Train length is bigger then batch size.'
+        assert len(self.train_indexes) > self.K - self.N, \
+            'Train length is too small, since its smaller then self.K'
+        assert len(self.train_indexes) > batch_size, \
+            'Reduce batch_size. Train length is bigger then batch size.'
 
         indexes = self.train_indexes[:(-self.K - self.N)]
 
         while True:
-            if shuffle: np.random.shuffle(indexes)
+            if shuffle:
+                np.random.seed(SEED)
+                np.random.shuffle(indexes)
 
             for position in indexes:
                 if batch_x is None:
@@ -178,9 +191,6 @@ class DataReader(object):
                 train_data = self.data.iloc[position:position + self.K]
                 train_label = self.data[target].iloc[position + self.K:position + self.K + self.N]
 
-                # if normalize:
-                #    batch_x[batch_i] = np.clip(self.normalizer.transform(train_data), -1, 1)
-                #    batch_y[batch_i] = np.clip(self.normalizer.transform(train_label.values.reshape(-1,1))[:,0],-1, 1)
                 if normalize:
                     batch_x[batch_i] = self.normalizer.transform(train_data)
                     batch_y[batch_i] = self.normalizer.transform(train_label.values.reshape(-1, 1))[:, 0]
@@ -208,10 +218,10 @@ class DataReader(object):
         batch_x = None
         batch_y = None
 
-        assert len(
-            self.validation_indexes) > self.K - self.N + 1, 'Validation length is too small, since its smaller then self.K'
-        assert len(
-            self.validation_indexes) > batch_size, 'Reduce batch_size. Validation length is smaller then batch size.'
+        assert len(self.validation_indexes) > self.K - self.N + 1, \
+            'Validation length is too small, since its smaller then self.K'
+        assert len(self.validation_indexes) > batch_size, \
+            'Reduce batch_size. Validation length is smaller then batch size.'
 
         indexes = self.validation_indexes[:(-self.N)] - self.K
 
@@ -239,25 +249,28 @@ class DataReader(object):
                     batch_y = None
                     batch_i = 0
 
-            # print('entered here')
             yield batch_x[:batch_i], batch_y[:batch_i]
             batch_x = None
             batch_y = None
             batch_i = 0
 
-    def generator_test(self, batch_size, target, normalize=True):
+    def generator_test(self,
+                       batch_size,
+                       target,
+                       normalize=True):
 
         batch_i = 0
         batch_x = None
         batch_y = None
 
-        assert len(self.test_indexes) > self.K - self.N + 1, 'Validation length is too small, since its smaller then self.K'
-        assert len(self.test_indexes) > batch_size, 'Reduce batch_size. Validation length is smaller then batch size.'
+        assert len(self.test_indexes) > self.K - self.N + 1, \
+            'Validation length is too small, since its smaller then self.K'
+        assert len(self.test_indexes) > batch_size, \
+            'Reduce batch_size. Validation length is smaller then batch size.'
 
         indexes = self.test_indexes[:(-self.N)] - self.K
 
         while True:
-            # print('entered here1')
             for position in indexes:
                 if batch_x is None:
                     batch_x = np.zeros((batch_size, self.K, len(self.data.columns)), dtype='float32')
@@ -266,10 +279,6 @@ class DataReader(object):
                 test_data = self.data.iloc[position:position + self.K]
                 test_labels = self.data[target].iloc[position + self.K: position + self.K + self.N]
 
-                # print(test_data.values, test_labels.values)
-                # if normalize:
-                #  batch_x[batch_i] = np.clip(self.normalizer.transform(test_data), -1, 1)
-                #  batch_y[batch_i] = np.clip(self.normalizer.transform(test_labels.values.reshape(-1,1))[:,0], -1, 1)
                 if normalize:
                     batch_x[batch_i] = self.normalizer.transform(test_data)
                     batch_y[batch_i] = self.normalizer.transform(test_labels.values.reshape(-1, 1))[:, 0]
@@ -285,13 +294,16 @@ class DataReader(object):
                     batch_x = None
                     batch_y = None
                     batch_i = 0
-            # print('entered here2')
+
             yield batch_x[:batch_i], batch_y[:batch_i]
             batch_x = None
             batch_y = None
             batch_i = 0
 
-    def cross_validation_time_series(self, n_splits, length_split, test_date=None):
+    def cross_validation_time_series(self,
+                                     n_splits,
+                                     length_split,
+                                     test_date=None):
 
         length = int(self.data.index.get_loc(test_date))
 
@@ -313,69 +325,3 @@ class DataReader(object):
             cv_val.append(validation_index)
 
         return cv, cv_val
-
-    def generator_train_cv(self, batch_size, target, indexes, shuffle=True, allow_smaller_batch=True):
-        batch_i = 0
-        batch_x = None
-        batch_y = None
-
-        train_length = len(indexes)
-
-        assert train_length > self.K - self.N + 1, 'Train length is too small, since its smaller then self.K'
-        assert train_length > batch_size, 'Reduce batch_size. Train length is bigger then batch size.'
-
-        while True:
-            if shuffle:
-                arr = np.random.shuffle(indexes)
-
-            for position in arr:
-                if batch_x is None:
-                    batch_x = np.zeros((batch_size, self.K, len(self.data.columns)), dtype='float32')
-                    batch_y = np.zeros((batch_size, self.N), dtype='float32')
-
-                batch_x[batch_i] = self.data[position:position + self.K].values
-                batch_y[batch_i] = self.data[target][position + self.K:position + self.K + self.N].values
-
-                batch_i += 1
-
-                if batch_i == batch_size:
-                    yield batch_x, batch_y
-                    batch_x = None
-                    batch_y = None
-                    batch_i = 0
-
-            if allow_smaller_batch:
-                yield batch_x[:batch_i], batch_y[:batch_i]
-                batch_x = None
-                batch_y = None
-                batch_i = 0
-
-    def generator_validation_cv(self, batch_size, target, indexes):
-
-        batch_i = 0
-        batch_x = None
-        batch_y = None
-
-        validation_length = len(indexes)
-
-        assert validation_length > self.K - self.N + 1, 'Validation length is too small, since its smaller then self.K'
-        assert validation_length > batch_size, 'Reduce batch_size. Validation length is smaller then batch size.'
-
-        for position in arr:
-            if batch_x is None:
-                batch_x = np.zeros((batch_size, self.K, len(self.data.columns)), dtype='float32')
-                batch_y = np.zeros((batch_size, self.N), dtype='float32')
-
-            batch_x[batch_i] = self.data.iloc[position:position + self.K].values
-            batch_y[batch_i] = self.data[target].iloc[position + self.K: position + self.K + self.N].values
-
-            batch_i += 1
-
-            if batch_i == batch_size:
-                print(batch_x.shape)
-                yield batch_x, batch_y
-                batch_x = None
-                batch_y = None
-                batch_i = 0
-
-        yield batch_x[:batch_i], batch_y[:batch_i]

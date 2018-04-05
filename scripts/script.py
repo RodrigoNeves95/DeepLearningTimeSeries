@@ -7,11 +7,7 @@ warnings.filterwarnings("ignore")
 
 from MyPackage.models import RNNTrainer
 
-import torch
-
 global run_number
-
-torch.manual_seed(2)
 
 def objective(params):
     try:
@@ -60,32 +56,50 @@ def get_model(params):
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Script Variables')
-    parser.add_argument('--file', default='runs', type=str, help='Directory to store files')
-    parser.add_argument('--folds', default=3, type=int, help='Number of folds for cross val')
-    parser.add_argument('--fold_size', default=365, type=int, help='Size in days for cross val fold')
-    parser.add_argument('--predict_steps', type=int, help='Number of steps to forecast')
-    parser.add_argument('--lr', default=0.001, type=float, help='learning rate')
-    parser.add_argument('--batch_size', default=256, type=int, help='Batch Size')
-    parser.add_argument('--epochs', default=10, type=int, help='Maximum number of epochs')
-    parser.add_argument('--model', default='RNN', type=str, choices=['RNN', 'LSTM', 'GRU', 'QRNN', 'TCN', 'DRNN'],
+    parser.add_argument('--file', default='runs', type=str,
+                        help='Directory to store files')
+    parser.add_argument('--folds', default=3, type=int,
+                        help='Number of folds for cross val')
+    parser.add_argument('--fold_size', default=365, type=int,
+                        help='Size in days for cross val fold')
+    parser.add_argument('--predict_steps', type=int,
+                        help='Number of steps to forecast')
+    parser.add_argument('--lr', default=0.001, type=float,
+                        help='learning rate')
+    parser.add_argument('--batch_size', default=256, type=int,
+                        help='Batch Size')
+    parser.add_argument('--epochs', default=10, type=int,
+                        help='Maximum number of epochs')
+    parser.add_argument('--model', default='RNN', type=str,
+                        choices=['RNN', 'LSTM', 'GRU', 'QRNN', 'TCN', 'DRNN'],
                         help='Model to use. Check available models')
-    parser.add_argument('--train_log', default=100, type=int, help='Number of steps to take log on train steps.')
-    parser.add_argument('--valid_log', default=100, type=int, help='Number of steps to take log on valid steps.')
-    parser.add_argument('--normalization', default='Standardization', type=str, help='Normalization to use',
-                        choices=['Standardization', 'MixMaxScaler'])
-    parser.add_argument('--scheduler', default=False, type=bool, help='Flag to choose to use lr scheduler')
-    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 15], help='Interval to be optimized')
-    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 6], help='Interval to be optimized')
-    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 2], help='Interval to be optimized')
-    parser.add_argument('--initial_point', nargs=3, type=int, default=[10, 5, 2], help='Initial point for optimization')
+    parser.add_argument('--train_log', default=100, type=int,
+                        help='Number of steps to take log on train steps.')
+    parser.add_argument('--valid_log', default=100, type=int,
+                        help='Number of steps to take log on valid steps.')
+    parser.add_argument('--normalization', default='Standardization', type=str,
+                        choices=['Standardization', 'MixMaxScaler'],
+                        help='Normalization to use')
+    parser.add_argument('--scheduler', default=False, type=bool,
+                        help='Flag to choose to use lr scheduler')
+    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 15],
+                        help='Interval to be optimized')
+    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 6],
+                        help='Interval to be optimized')
+    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 2],
+                        help='Interval to be optimized')
+    parser.add_argument('--initial_point', nargs=3, type=int, default=[10, 5, 2],
+                        help='Initial point for optimization')
     parser.add_argument('--N_CALLS', default=30, type=int, help='Number of calls for optmization')
-    parser.add_argument('--RANDOM_STARTS', default=10, type=int, help='Number of random starts for optimization')
-    parser.add_argument('--optimizer' ,default='Adam', type=str, choices=['Adam', 'SGD', 'RMSProp', 'Adadelta', 'Adagrad'],
+    parser.add_argument('--RANDOM_STARTS', default=10, type=int,
+                        help='Number of random starts for optimization')
+    parser.add_argument('--optimizer' ,default='Adam', type=str,
+                        choices=['Adam', 'SGD', 'RMSProp', 'Adadelta', 'Adagrad'],
                         help='Optimizer to use')
-    parser.add_argument('--patience', default=3, type=int, help='Number of steps to stop train loop '
-                                                                'after no improvment in validation set')
-
-    parser.add_argument('--file_name', type=str, help='Name of file to save all the schnitzel')
+    parser.add_argument('--patience', default=3, type=int,
+                        help='Number of steps to stop train loop after no improvment in validation set')
+    parser.add_argument('--file_name', type=str,
+                        help='Name of file to save all the schnitzel')
 
     args = parser.parse_args()
 
@@ -96,6 +110,7 @@ if __name__ == "__main__":
         sys.exit('This directory already exists. Check if you want to overwrite it. If so remove it manually.')
 
     SEED = 1337
+
     NCALLS = args.N_CALLS
     NRANDOMSTARTS = args.RANDOM_STARTS
 
@@ -119,9 +134,9 @@ if __name__ == "__main__":
 
     print(res_gp.x)
 
-    best_number_steps_train = res_gp.x[0]
-    best_hidden_size = res_gp.x[1]
-    best_num_layers = res_gp.x[2]
+    best_number_steps_train = int(res_gp.x[0])
+    best_hidden_size = int(res_gp.x[1])
+    best_num_layers = int(res_gp.x[2])
 
     model = RNNTrainer(data_path = '/datadrive/wind_power/wind_all.csv',
                        logger_path = path,
@@ -147,5 +162,9 @@ if __name__ == "__main__":
                        parse_dates = True )
 
     model.train(args.patience)
+    model.get_best()
     predictions, labels = model.predict()
-    predictions, true_data, mse, mae = model.postprocess(predictions, labels)
+    final_df, mse, mae = model.postprocess(predictions, labels)
+
+    model.filelogger.write_results(predictions, labels, final_df, mse, mae)
+

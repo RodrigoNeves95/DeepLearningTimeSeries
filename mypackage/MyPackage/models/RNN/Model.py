@@ -11,6 +11,8 @@ from .QRNN import QRNN
 from .TCN import TemporalConvNet
 from .DRNN import DRNN
 
+SEED = 1337
+
 class RNNModel(nn.Module):
     def __init__(self, input_size, output_size, number_steps_predict, num_layers=1, hidden_size=10, cell_type='LSTM'):
         super(RNNModel, self).__init__()
@@ -42,11 +44,10 @@ class RNNModel(nn.Module):
 
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)
 
-
     def forward(self, x, hidden=None):
-            outputs, hidden_state = self.encoder_cell(x, hidden)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
-            outputs = self.output_layer(outputs)
-            return outputs
+        outputs, hidden_state = self.encoder_cell(x, hidden)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+        outputs = self.output_layer(outputs)
+        return outputs
 
     def predict(self, x, hidden=None):
 
@@ -59,7 +60,7 @@ class RNNModel(nn.Module):
                 result = self.output_layer(output[:, -1, :])
                 x = torch.cat([x, result.unsqueeze(1)], dim=1)
                 predictions.append(result)
-            return torch.stack(predictions, dim=1)
+            return torch.stack(predictions, dim=1)[:, :, 0]
         else:
             predictions = []
             for step in range(self.number_steps_predict):
@@ -70,7 +71,7 @@ class RNNModel(nn.Module):
                     output, hidden_state = self.encoder_cell(result.unsqueeze(1), hidden_state)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
                     result = self.output_layer(output[:, -1, :])
                 predictions.append(result)
-            return torch.stack(predictions, dim=1)
+            return torch.stack(predictions, dim=1)[:, :, 0]
 
 class RNNTrainer(Trainer):
     def __init__(self,
@@ -95,6 +96,8 @@ class RNNTrainer(Trainer):
 
         super(RNNTrainer, self).__init__(**kwargs)
 
+        torch.manual_seed(SEED)
+
         # Hyper-parameters
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -107,12 +110,14 @@ class RNNTrainer(Trainer):
         self.batch_size = batch_size
         self.num_epoch = num_epoch
         self.use_scheduler = use_scheduler
-        self.file_name = self.filelogger.file_name
-
+        self.loss_function = loss_function
+        self.optimizer = optimizer
         self.normalizer = normalizer
         self.validation_date = validation_date
         self.test_date = test_date
         self.target_column = target_column
+
+        self.file_name = self.filelogger.file_name
 
         # Save metadata model
         metadata_key = ['number_steps_train',
@@ -124,13 +129,13 @@ class RNNTrainer(Trainer):
                         'validation_date',
                         'test_date']
 
-        metadata_value = [number_steps_train,
-                          number_steps_predict,
-                          lr, batch_size,
-                          num_epoch,
-                          target_column,
-                          validation_date,
-                          test_date]
+        metadata_value = [self.number_steps_train,
+                          self.number_steps_predict,
+                          self.lr, batch_size,
+                          self.num_epoch,
+                          self.target_column,
+                          self.validation_date,
+                          self.test_date]
 
         metadata_dict = {}
         for i in range(len(metadata_key)):

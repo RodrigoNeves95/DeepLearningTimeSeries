@@ -210,13 +210,13 @@ class EncoderDecoderTrainer(Trainer):
                  num_layers,
                  cell_type_encoder,
                  cell_type_decoder,
-                 number_features_encoder,
-                 number_features_decoder,
-                 number_features_output,
                  use_attention,
                  target_column,
                  batch_size,
                  num_epoch,
+                 number_features_encoder=1,
+                 number_features_decoder=1,
+                 number_features_output=1,
                  loss_function='MSE',
                  optimizer='Adam',
                  normalizer='Standardization',
@@ -224,8 +224,8 @@ class EncoderDecoderTrainer(Trainer):
                  validation_date=None,
                  test_date=None,
                  **kwargs):
-
         super(EncoderDecoderTrainer, self).__init__(**kwargs)
+
         # Hyper-parameters
         self.number_steps_train = number_steps_train
         self.number_steps_predict = number_steps_predict
@@ -233,35 +233,47 @@ class EncoderDecoderTrainer(Trainer):
         self.batch_size = batch_size
         self.num_epoch = num_epoch
         self.use_scheduler = use_scheduler
+        self.target_column = target_column
+        self.hidden_size_encoder = hidden_size_encoder
+        self.hidden_size_decoder = hidden_size_decoder
+        self.num_layers = num_layers
+        self.use_attention = use_attention
+        self.cell_type_encoder = cell_type_encoder
+        self.cell_type_decoder = cell_type_decoder
+        self.number_features_encoder = number_features_encoder
+        self.number_features_decoder = number_features_decoder
+        self.number_features_output = number_features_output
+        self.loss_function = loss_function
+        self.optimizer = optimizer
+        self.normalizer = normalizer
+        self.validation_date = validation_date
+        self.test_date = test_date
 
         self.file_name = self.filelogger.file_name
 
         # Save metadata model
-        metadata_key = ['number_steps_train', 'number_steps_predict', 'lr', 'batch_size', 'num_epoch', 'target_column',
-                        'validation_date', 'test_date']
-        metadata_value = [number_steps_train, number_steps_predict, lr, batch_size, num_epoch, target_column,
-                          validation_date, test_date]
+        metadata_key = ['number_steps_train',
+                        'number_steps_predict',
+                        'lr',
+                        'batch_size',
+                        'num_epoch',
+                        'target_column',
+                        'validation_date',
+                        'test_date']
+
+        metadata_value = [self.number_steps_train,
+                          self.number_steps_predict,
+                          self.lr,
+                          self.batch_size,
+                          self.num_epoch,
+                          self.target_column,
+                          self.validation_date,
+                          self.test_date]
+
         metadata_dict = {}
         for i in range(len(metadata_key)):
             metadata_dict[metadata_key[i]] = metadata_value[i]
 
-        # prepare datareader
-        self.datareader.preprocessing_data(self.number_steps_train,
-                                           self.number_steps_predict,
-                                           self.batch_size,
-                                           validation_date,
-                                           test_date,
-                                           normalizer)
-        # Initialize train generator
-        self.train_generator = self.datareader.generator_train(self.batch_size,
-                                                               target_column,
-                                                               allow_smaller_batch=True)
-
-        # Initialize validation and test generator
-        if validation_date is not None:
-            self.validation_generator = self.datareader.generator_validation(self.batch_size, target_column)
-        if test_date is not None:
-            self.test_generator = self.datareader.generator_test(self.batch_size, target_column)
 
         # check if it's to load model or not
         if self.filelogger.load_model is not None:
@@ -269,37 +281,87 @@ class EncoderDecoderTrainer(Trainer):
             print('Load model from {}'.format(
                 self.logger_path + self.file_name + 'model_checkpoint/' + self.filelogger.load_model))
         else:
-            self.model = EncoderDecoder(number_features_encoder, number_features_decoder, number_steps_predict,
-                                        hidden_size_encoder, hidden_size_decoder, num_layers, cell_type_encoder,
-                                        cell_type_decoder, number_features_output, use_attention)
+            self.model = EncoderDecoder(self.number_features_encoder,
+                                        self.number_features_decoder,
+                                        self.number_steps_predict,
+                                        self.hidden_size_encoder,
+                                        self.hidden_size_decoder,
+                                        self.num_layers,
+                                        self.cell_type_encoder,
+                                        self.cell_type_decoder,
+                                        self.number_features_output,
+                                        self.use_attention)
+
             self.filelogger.write_metadata(metadata_dict)
-        # loss function
-        if loss_function == 'MSE':
-            self.criterion = nn.MSELoss()
-        # optimizer
-        if optimizer == 'Adam':
-            self.model_optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-        if optimizer == 'SGD':
-            self.model_optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
-        if optimizer == 'RMSProp':
-            self.model_optimizer = optim.RMSprop(self.model.parameters(), lr=self.lr)
-        if optimizer == 'Adadelta':
-            self.model_optimizer = optim.Adadelta(self.model.parameters(), lr=self.lr)
-        if optimizer == 'Adagrad':
-            self.model_optimizer = optim.Adagrad(self.model.parameters(), lr=self.lr)
 
-        if self.use_scheduler:
-            self.scheduler = ReduceLROnPlateau(self.model_optimizer, 'min', patience=2, threshold=1e-5)
+            # loss function
+            if loss_function == 'MSE':
+                self.criterion = nn.MSELoss()
+            # optimizer
+            if optimizer == 'Adam':
+                self.model_optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+            if optimizer == 'SGD':
+                self.model_optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+            if optimizer == 'RMSProp':
+                self.model_optimizer = optim.RMSprop(self.model.parameters(), lr=self.lr)
+            if optimizer == 'Adadelta':
+                self.model_optimizer = optim.Adadelta(self.model.parameters(), lr=self.lr)
+            if optimizer == 'Adagrad':
+                self.model_optimizer = optim.Adagrad(self.model.parameters(), lr=self.lr)
 
-        # check CUDA availability
-        if self.use_cuda:
-            self.model.cuda()
+            if self.use_scheduler:
+                self.scheduler = ReduceLROnPlateau(self.model_optimizer, 'min', patience=2, threshold=1e-5)
+
+            # check CUDA availability
+            if self.use_cuda:
+                self.model.cuda()
+
+    def prepare_datareader(self):
+        # prepare datareader
+        self.datareader.preprocessing_data(self.number_steps_train,
+                                           self.number_steps_predict,
+                                           self.batch_size,
+                                           self.validation_date,
+                                           self.test_date,
+                                           self.normalizer)
+        # Initialize train generator
+        self.train_generator = self.datareader.generator_train(self.batch_size,
+                                                               self.target_column,
+                                                               allow_smaller_batch=True)
+
+        # Initialize validation and test generator
+        if self.validation_date is not None:
+            self.validation_generator = self.datareader.generator_validation(self.batch_size,
+                                                                             self.target_column)
+
+        if self.test_date is not None:
+            self.test_generator = self.datareader.generator_test(self.batch_size,
+                                                                 self.target_column)
+
+
+    def prepare_datareader_cv(self, cv_train, cv_val):
+        # prepare datareader
+        self.datareader.preprocessing_data_cv(self.number_steps_train,
+                                              self.number_steps_predict,
+                                              self.batch_size,
+                                              cv_train,
+                                              cv_val,
+                                              self.normalizer)
+        # Initialize train generator
+        self.train_generator = self.datareader.generator_train(self.batch_size,
+                                                               self.target_column,
+                                                               allow_smaller_batch=True)
+
+        if self.validation_date is not None:
+            self.validation_generator = self.datareader.generator_validation(self.batch_size,
+                                                                             self.target_column)
 
     def training_step(self):
 
         self.model_optimizer.zero_grad()
         loss = 0
         X, Y = next(self.train_generator)
+        length = X.shape[0]
         X = Variable(torch.from_numpy(X)).float().cuda()
         Y = Variable(torch.from_numpy(Y)).float()
         temp_array = np.empty((Y.shape[0], 1))
@@ -311,11 +373,12 @@ class EncoderDecoderTrainer(Trainer):
         loss.backward()
         self.model_optimizer.step()
 
-        return loss.data[0]
+        return loss.data[0], loss.data[0] * length
 
     def evaluation_step(self):
 
         X, Y = next(self.validation_generator)
+        length = X.shape[0]
         X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
         Y = Variable(torch.from_numpy(Y), requires_grad=False, volatile=True).float().cuda()
         temp_array = np.empty((Y.shape[0], 1))
@@ -324,7 +387,7 @@ class EncoderDecoderTrainer(Trainer):
         results = self.model.predict(X, decoder_input.unsqueeze(1).cuda())
         valid_loss = self.criterion(results, Y.unsqueeze(2).cuda())
 
-        return valid_loss.data[0]
+        return valid_loss.data[0], valid_loss.data[0] * length
 
     def prediction_step(self):
 

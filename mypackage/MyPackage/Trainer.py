@@ -1,7 +1,8 @@
-import sys, traceback, os
+import sys, traceback, os, re
 
 import torch
 import numpy as np
+import pandas as pd
 
 from tqdm import trange
 
@@ -12,6 +13,7 @@ from MyPackage import DataReader
 from MyPackage.utils import mean_predictions
 
 from tensorboardX import SummaryWriter
+from glob import glob
 
 class Trainer(object):
     def __init__(self,
@@ -25,11 +27,14 @@ class Trainer(object):
                  **kwargs):
 
         # Data Reader
-        self.datareader = DataReader(data_path, **kwargs)
+        self.datareader = DataReader(data_path,
+                                     **kwargs)
         # File Logger
-        self.filelogger = FileLogger(logger_path, model_name, load_model_name, use_script)
-        # Tensorboard
-        #self.tensorboard = SummaryWriter(self.filelogger.path + '/tensorboard/')
+        self.filelogger = FileLogger(logger_path,
+                                     model_name,
+                                     load_model_name,
+                                     use_script)
+
         # Check cuda availability
         self.use_cuda = torch.cuda.is_available()
 
@@ -39,7 +44,8 @@ class Trainer(object):
         self.train_log_interval = train_log_interval
         self.valid_log_interval = valid_log_interval
 
-    def save(self, model_name):
+    def save(self,
+             model_name):
         """
         Save model
         """
@@ -48,15 +54,18 @@ class Trainer(object):
             os.makedirs(path)
         torch.save(self.model, path + model_name)
 
-    def load(self, path_name):
+    def load(self,
+             path_name):
         """
         Load model
         """
+        print('Loading file from {}'.format(path_name))
         self.model = torch.load(path_name)
         if self.use_cuda:
             self.model.cuda()
 
-    def train(self, patience):
+    def train(self,
+              patience):
 
         self.prepare_datareader()
         self.filelogger.start()
@@ -185,34 +194,6 @@ class Trainer(object):
             traceback.print_exc(file=sys.stdout)
             sys.exit(0)
 
-    def predict(self):
-
-        self.prepare_datareader()
-
-        predictions = []
-        labels = []
-
-        for batch_test in range(self.datareader.test_steps):
-            self.model.eval()
-
-            prediction, Y = self.prediction_step()
-            predictions.append(prediction.cpu().data.numpy())
-            labels.append(Y)
-
-        return np.concatenate(predictions), np.concatenate(labels)
-
-    def postprocess(self, predictions, labels):
-
-        predictions = self.datareader.normalizer.inverse_transform(predictions[:, :, 0])
-        labels = self.datareader.normalizer.inverse_transform(labels)
-
-        mse = mean_squared_error(predictions, labels)
-        mae = mean_absolute_error(predictions, labels)
-
-        target = self.datareader.data.iloc[self.datareader.test_indexes[:-1]]
-
-        return mean_predictions(predictions), target, mse, mae
-
     def train_cv(self, number_splits, days, patience):
 
         try:
@@ -223,7 +204,7 @@ class Trainer(object):
 
             for model_number in range(number_splits):
 
-                self.filelogger.start('Fold_Number{}'.format(model_number + 1))
+                self.filelogger.start('Fold_Number{0}'.format(model_number + 1))
                 self.tensorboard = SummaryWriter(self.filelogger.path + '/tensorboard/')
 
                 self.prepare_datareader_cv(cv_train_indexes[model_number],
@@ -344,3 +325,47 @@ class Trainer(object):
         except Exception:
             traceback.print_exc(file=sys.stdout)
             sys.exit(0)
+
+    def predict(self):
+
+        self.prepare_datareader()
+
+        predictions = []
+        labels = []
+
+        for batch_test in range(self.datareader.test_steps):
+            self.model.eval()
+
+            prediction, Y = self.prediction_step()
+            predictions.append(prediction.cpu().data.numpy())
+            labels.append(Y)
+
+        return np.concatenate(predictions), np.concatenate(labels)
+
+    def postprocess(self, predictions, labels):
+
+        predictions = self.datareader.normalizer.inverse_transform(predictions)
+        labels = self.datareader.normalizer.inverse_transform(labels)
+
+        mse = mean_squared_error(predictions, labels)
+        mae = mean_absolute_error(predictions, labels)
+
+        target = self.datareader.data.iloc[self.datareader.test_indexes[:-1]]
+
+        target['predictions'] = mean_predictions(predictions)
+
+        return target, mse, mae
+
+    def get_best(self):
+
+        files = glob(self.filelogger.path + '/model_checkpoint/*')
+
+        best = 100
+        for file in files:
+            number = re.findall('[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?', file)
+            result = float(number[1])
+            if result < best:
+                best = result
+                best_file = file
+
+        self.load(best_file)
