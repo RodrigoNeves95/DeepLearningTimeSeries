@@ -14,7 +14,7 @@ from .DRNN import DRNN
 SEED = 1337
 
 class RNNModel(nn.Module):
-    def __init__(self, input_size, output_size, number_steps_predict, num_layers=1, hidden_size=10, cell_type='LSTM'):
+    def __init__(self, input_size, output_size, number_steps_predict, kernel_size=None, num_layers=1, hidden_size=10, cell_type='LSTM'):
         super(RNNModel, self).__init__()
 
         self.input_size = input_size
@@ -24,6 +24,8 @@ class RNNModel(nn.Module):
         self.encoder_cell = None
         self.cell_type = cell_type
         self.output_size = output_size
+        self.kernel_size = kernel_size
+
 
         assert self.cell_type in ['LSTM', 'RNN', 'GRU', 'DRNN', 'QRNN', 'TCN'], \
             'Not Implemented, choose on of the following options - ' \
@@ -36,11 +38,11 @@ class RNNModel(nn.Module):
         if self.cell_type == 'RNN':
             self.encoder_cell = nn.RNN(self.input_size, self.hidden_size, self.num_layers, batch_first=True)
         if self.cell_type == 'QRNN':
-            self.encoder_cell = QRNN(self.input_size, self.hidden_size, self.num_layers)
+            self.encoder_cell = QRNN(self.input_size, self.hidden_size, self.num_layers, self.kernel_size)
         if self.cell_type == 'DRNN':
             self.encoder_cell = DRNN(self.input_size, self.hidden_size, self.num_layers)  # Batch_First always True
         if self.cell_type == 'TCN':
-            self.encoder_cell = TemporalConvNet(self.input_size, self.hidden_size, self.num_layers)
+            self.encoder_cell = TemporalConvNet(self.input_size, self.hidden_size, self.num_layers, self.kernel_size)
 
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)
 
@@ -86,6 +88,7 @@ class RNNTrainer(Trainer):
                  num_epoch,
                  number_features_input = 1,
                  number_features_output = 1,
+                 kernel_size = None,
                  loss_function = 'MSE',
                  optimizer = 'Adam',
                  normalizer = 'Standardization',
@@ -107,6 +110,7 @@ class RNNTrainer(Trainer):
         self.number_steps_train = number_steps_train
         self.number_steps_predict = number_steps_predict
         self.lr = lr
+        self.kernel_size = kernel_size
         self.batch_size = batch_size
         self.num_epoch = num_epoch
         self.use_scheduler = use_scheduler
@@ -150,6 +154,7 @@ class RNNTrainer(Trainer):
             self.model = RNNModel(self.number_features_input,
                                   self.number_features_output,
                                   self.number_steps_predict,
+                                  self.kernel_size,
                                   self.num_layers,
                                   self.hidden_size,
                                   self.cell_type)

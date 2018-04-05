@@ -192,12 +192,13 @@ class QRNNLayer(nn.Module):
         - h_n (batch, hidden_size): tensor containing the hidden state for t=seq_len
     """
 
-    def __init__(self, input_size, hidden_size=None, save_prev_x=False, zoneout=0, window=10, output_gate=True,
+    def __init__(self, input_size, hidden_size=None, window=10, save_prev_x=False, zoneout=0, output_gate=True,
                  use_cuda=True):
         super(QRNNLayer, self).__init__()
 
         # assert window in [1, 2], "This QRNN implementation currently only handles convolutional window of size 1 or size 2"
         self.window = window
+
         self.input_size = input_size
         self.hidden_size = hidden_size if hidden_size else input_size
         self.zoneout = zoneout
@@ -206,10 +207,7 @@ class QRNNLayer(nn.Module):
         self.output_gate = output_gate
         self.use_cuda = use_cuda
 
-        # One large matmul with concat is faster than N small matmuls and no concat
-        self.linear = nn.Linear(self.window * self.input_size,
-                                3 * self.hidden_size if self.output_gate else 2 * self.hidden_size)
-        self.Conv1D = nn.Conv1d(self.input_size, 3 * self.hidden_size, kernel_size=self.window)
+        self.Conv1D = nn.Conv1d(self.input_size, 3 * self.hidden_size, kernel_size = self.window)
 
     def reset(self):
         # If you are saving the previous value of x, you should call this when starting with a new state
@@ -296,7 +294,7 @@ class QRNN(torch.nn.Module):
     """
 
     def __init__(self, input_size, hidden_size,
-                 num_layers=1, bias=True, batch_first=False,
+                 num_layers=1, kernel_size = 2, bias=True, batch_first=False,
                  dropout=0, bidirectional=False, layers=None, **kwargs):
         assert bidirectional == False, 'Bidirectional QRNN is not yet supported'
         assert batch_first == False, 'Batch first mode is not yet supported'
@@ -305,7 +303,7 @@ class QRNN(torch.nn.Module):
         super(QRNN, self).__init__()
 
         self.layers = torch.nn.ModuleList(
-            layers if layers else [QRNNLayer(input_size if l == 0 else hidden_size, hidden_size, **kwargs) for l in
+            layers if layers else [QRNNLayer(input_size if l == 0 else hidden_size, hidden_size, kernel_size, **kwargs) for l in
                                    range(num_layers)])
 
         self.input_size = input_size

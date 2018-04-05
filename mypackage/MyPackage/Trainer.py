@@ -403,19 +403,20 @@ if __name__ == "__main__":
                                     index_col=['Date and hour'],
                                     parse_dates=True)
     '''
-    '''
+
     model = RNNTrainer(data_path='/datadrive/wind_power/wind_all.csv',
                        logger_path='/home/rneves/temp/temp_logger/',
                        model_name='Run_Best_Model',
                        use_script=True,
                        lr=0.001,
-                       number_steps_train=10,
+                       number_steps_train=30,
                        number_steps_predict=2,
                        batch_size=256,
                        num_epoch=1,
                        hidden_size=4,
                        num_layers=2,
                        cell_type='TCN',
+                       kernel_size=3,
                        target_column='SSG Wind',
                        validation_date='2015-01-01 00:00:00',
                        test_date='2016-01-01 00:00:00',
@@ -455,8 +456,9 @@ if __name__ == "__main__":
                                   use_script=True,
                                   index_col=['Date and hour'],
                                   parse_dates=True)
+    '''
 
-
+    print(list(model.model.parameters()))
     model.train_cv(2, 365, 2)
     model.train(2)
     model.get_best()
