@@ -10,6 +10,7 @@ import numpy as np
 
 from MyPackage import Trainer
 
+SEED = 1337
 
 class Encoder(nn.Module):
     def __init__(self, input_size, num_layers=2, hidden_size=10, cell_type='LSTM'):
@@ -183,11 +184,10 @@ class EncoderDecoder(nn.Module):
             input_decoder = X_decoder[:, 0, :]
             for step in range(self.number_steps_predict):
                 input_decoder = input_decoder.unsqueeze(1)
-
                 if self.encoder.cell_type == 'LSTM':
-                    hidden_decoder = hidden_decoder[0]
-
-                attn_weights = self.attention(hidden_decoder, output)  # hidden_state -1 ou 1
+                    attn_weights = self.attention(hidden_decoder[0][-1], output)  # hidden_state -1 ou 1
+                else:
+                    attn_weights = self.attention(hidden_decoder[-1], output)
                 context = attn_weights.bmm(output)  # (B,1,V)
                 input_decoder = torch.cat((input_decoder, context), 2)
                 input_decoder, hidden_decoder = self.decoder.forward_attention(input_decoder, hidden_decoder)
@@ -225,6 +225,8 @@ class EncoderDecoderTrainer(Trainer):
                  test_date=None,
                  **kwargs):
         super(EncoderDecoderTrainer, self).__init__(**kwargs)
+
+        torch.manual_seed(SEED)
 
         # Hyper-parameters
         self.number_steps_train = number_steps_train

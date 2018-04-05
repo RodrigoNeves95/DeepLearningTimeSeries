@@ -86,12 +86,12 @@ class Trainer(object):
                                  unit=' Epochs')
 
             for epoch in epoch_range:
-                batch_train_range = trange(int(self.datareader.train_steps),
+                batch_train_range = trange(int(20),
                                            desc='2st loop',
                                            unit=' Batch',
                                            leave=True)
 
-                batch_valid_range = trange(int(self.datareader.validation_steps),
+                batch_valid_range = trange(int(20),
                                            desc='2st loop',
                                            unit=' Batch',
                                            leave=True)
@@ -226,12 +226,12 @@ class Trainer(object):
                                      leave=True)
 
                 for epoch in epoch_range:
-                    batch_train_range = trange(int(self.datareader.train_steps),
+                    batch_train_range = trange(int(20),
                                                desc='2st loop',
                                                unit=' Batch',
                                                leave=False)
 
-                    batch_valid_range = trange(int(self.datareader.validation_steps),
+                    batch_valid_range = trange(int(20),
                                                desc='2st loop',
                                                unit=' Batch',
                                                leave=False)
@@ -344,6 +344,7 @@ class Trainer(object):
 
     def postprocess(self, predictions, labels):
 
+        print(predictions.shape, labels.shape)
         predictions = self.datareader.normalizer.inverse_transform(predictions)
         labels = self.datareader.normalizer.inverse_transform(labels)
 
@@ -369,3 +370,97 @@ class Trainer(object):
                 best_file = file
 
         self.load(best_file)
+
+
+if __name__ == "__main__":
+
+    from MyPackage.models import WaveNetContinuosTrainer, RNNTrainer, EncoderDecoderTrainer
+    '''
+    model = WaveNetContinuosTrainer(data_path='/datadrive/wind_power/wind_all.csv',
+                                    logger_path='/home/rneves/temp/temp_logger/',
+                                    model_name='Test_EncoderDecoder2',
+                                    train_log_interval=100,
+                                    valid_log_interval=100,
+                                    n_residue=10,
+                                    n_skip=20,
+                                    dilation_depth=5,
+                                    n_repeat=1,
+                                    number_steps_predict=10,
+                                    number_steps_train=250,
+                                    lr=0.001,
+                                    batch_size=256,
+                                    num_epoch=1,
+                                    target_column='SSG Wind',
+                                    number_features_input=1,
+                                    number_features_output=1,
+                                    loss_function='MSE',
+                                    optimizer='Adam',
+                                    normalizer='Standardization',
+                                    use_scheduler=False,
+                                    use_script=True,
+                                    validation_date='2015-01-01 00:00:00',
+                                    test_date='2016-01-01 00:00:00',
+                                    index_col=['Date and hour'],
+                                    parse_dates=True)
+    '''
+    '''
+    model = RNNTrainer(data_path='/datadrive/wind_power/wind_all.csv',
+                       logger_path='/home/rneves/temp/temp_logger/',
+                       model_name='Run_Best_Model',
+                       use_script=True,
+                       lr=0.001,
+                       number_steps_train=10,
+                       number_steps_predict=2,
+                       batch_size=256,
+                       num_epoch=1,
+                       hidden_size=4,
+                       num_layers=2,
+                       cell_type='TCN',
+                       target_column='SSG Wind',
+                       validation_date='2015-01-01 00:00:00',
+                       test_date='2016-01-01 00:00:00',
+                       train_log_interval=100,
+                       valid_log_interval=100,
+                       use_scheduler=False,
+                       normalizer='Standardization',
+                       optimizer='Adam',
+                       index_col=['Date and hour'],
+                       parse_dates=True)
+    '''
+
+    model = EncoderDecoderTrainer(data_path='/datadrive/wind_power/wind_all.csv',
+                                  logger_path='/home/rneves/temp/temp_logger/',
+                                  model_name='Test_EncoderDecoder',
+                                  lr=0.001,
+                                  number_steps_train=2,
+                                  number_steps_predict=2,
+                                  batch_size=256,
+                                  num_epoch=1,
+                                  hidden_size_encoder=2,
+                                  hidden_size_decoder=2,
+                                  num_layers=1,
+                                  cell_type_encoder='RNN',
+                                  cell_type_decoder='RNN',
+                                  number_features_encoder=1,
+                                  number_features_decoder=1,
+                                  number_features_output=1,
+                                  use_attention=True,
+                                  target_column='SSG Wind',
+                                  validation_date='2015-01-01 00:00:00',
+                                  test_date='2016-01-01 00:00:00',
+                                  train_log_interval=100,
+                                  valid_log_interval=100,
+                                  use_scheduler=True,
+                                  normalizer='Standardization',
+                                  use_script=True,
+                                  index_col=['Date and hour'],
+                                  parse_dates=True)
+
+
+    model.train_cv(2, 365, 2)
+    model.train(2)
+    model.get_best()
+    predictions, labels = model.predict()
+    final_df, mse, mae = model.postprocess(predictions, labels)
+    model.filelogger.write_results(predictions, labels, final_df, mae, mse)
+    print('Done!')

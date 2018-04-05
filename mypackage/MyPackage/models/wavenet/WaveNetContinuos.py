@@ -1,24 +1,22 @@
-import time, sys, os, traceback
-
 import torch
 from torch import nn
 from torch.autograd import Variable
+from torch.optim.lr_scheduler import *
 import torch.optim as optim
 
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+import numpy as np
 
-from MyPackage import FileLogger
-from MyPackage import DataReader
-from MyPackage.utils import *
+from MyPackage import Trainer
 
-from tensorboardX import SummaryWriter
+SEED = 1337
 
 class WaveNetModelContinuos(nn.Module):
-    def __init__(self, number_features, n_residue=32, n_skip=512, dilation_depth=10, n_repeat=5):
+    def __init__(self, number_features, number_steps_predict, n_residue=32, n_skip=512, dilation_depth=10, n_repeat=5):
         super(WaveNetModelContinuos, self).__init__()
 
         self.dilation_depth = dilation_depth
         self.number_features = number_features
+        self.number_steps_predict = number_steps_predict
 
         self.dilations = [2 ** i for i in range(dilation_depth)] * n_repeat
 
@@ -47,6 +45,7 @@ class WaveNetModelContinuos(nn.Module):
         self.conv_post_2 = nn.Conv1d(in_channels=n_skip, out_channels=1, kernel_size=1)
 
     def forward(self, input):
+
         output = input.permute(0, 2, 1)
         output = self.from_input(output)
         skip_connections = []
@@ -82,323 +81,223 @@ class WaveNetModelContinuos(nn.Module):
         if scalar_input:
             receptive_field += output_filter_width - 1
             self.receptive_field = receptive_field
-        else:
-            receptive_field += filter_width - 1
-            self.receptive_field = receptive_field
         return receptive_field
 
-    def generate_slow(self, input, n=100):
+    def calculate_output_receptive_field(self, input_filter_width):
+
+        self.output_receptive_field = input_filter_width - sum(self.dilations)
+
+        return self.output_receptive_field
+
+    def predict(self, input):
         res = input
-        for _ in range(n):
+        for _ in range(self.number_steps_predict):
             x = res[:, -self.receptive_field:, :]
             y = self.forward(x)
             i = y.permute(0, 2, 1)
             del (y)
             res = torch.cat((res, i[:, 0, :]), dim=1)
-        return res
-
-    def predict(self, input):
-        res = input
-        x = res[:, -self.receptive_field:, :]
-        y = self.forward(x)
-        predictions = y.permute(0, 2, 1)
-        return predictions
-
-    def generate(self, input=None, n=100, temperature=None, estimate_time=False):
-
-        output = self.preprocess(input)
-        output_buffer = []
-
-        for s, t, skip_scale, residue_scale, d in zip(self.conv_sigmoid, self.conv_tanh, self.skip_scale,
-                                                      self.residue_scale, self.dilations):
-            output, _ = self.residue_forward(output, s, t, skip_scale, residue_scale)
-            sz = 1 if d == 2 ** (self.dilation_depth - 1) else d * 2
-            output_buffer.append(output[:, :, -sz - 1:-1])
+        return res[:, -self.number_steps_predict:, 0]
 
 
-        res = input.data.tolist()
-        for i in range(n):
-            output = Variable(torch.LongTensor(res[-2:]))
-            output = self.preprocess(output)
-            output_buffer_next = []
-            skip_connections = []  # save for generation purposes
-            for s, t, skip_scale, residue_scale, b in zip(self.conv_sigmoid, self.conv_tanh, self.skip_scale,
-                                                          self.residue_scale, output_buffer):
-                output, residue = self.residue_forward(output, s, t, skip_scale, residue_scale)
-                output = torch.cat([b, output], dim=2)
-                skip_connections.append(residue)
-                if i % 100 == 0:
-                    output = output.clone()
-                output_buffer_next.append(output[:, :, -b.size(2):])
-            output_buffer = output_buffer_next
-            output = output[:, :, -1:]
-            # sum up skip connections
-            output = sum(skip_connections)
-            output = self.postprocess(output)
-            if temperature is None:
-                _, output = output.max(dim=1)
-            else:
-                output = output.div(temperature).exp().multinomial(1).squeeze()
-            res.append(output.data[-1])
-        return res
-
-
-class WaveNetContinuosTrainer(object):
+class WaveNetContinuosTrainer(Trainer):
     def __init__(self,
-                 data_path,
-                 logger_path,
-                 name,
                  n_residue,
                  n_skip,
                  dilation_depth,
                  n_repeat,
                  number_steps_predict,
+                 number_steps_train,
                  lr,
                  batch_size,
                  num_epoch,
                  target_column,
-                 number_features,
+                 number_features_input,
+                 number_features_output,
+                 loss_function='MSE',
+                 optimizer='Adam',
+                 normalizer='Standardization',
+                 use_scheduler=False,
                  validation_date=None,
                  test_date=None,
                  load_model_name=None,
                  **kwargs):
 
-        metadata_key = ['n_residue', 'n_skip', 'dilation_depth', 'n_repeat', 'number_steps_predict', 'lr', 'batch_size',
-                        'num_epoch', 'target_column', 'number of features', 'validation_date', 'test_date']
-        metadata_value = [n_residue, n_skip, dilation_depth, n_repeat, number_steps_predict, lr, batch_size, num_epoch,
-                          target_column, number_features, validation_date, test_date]
+        super(WaveNetContinuosTrainer, self).__init__(**kwargs)
+
+        self.n_residue = n_residue
+        self.n_skip = n_skip
+        self.dilation_depth = dilation_depth
+        self.n_repeat = n_repeat
+        self.number_steps_predict = number_steps_predict
+        self.number_steps_train = number_steps_train
+        self.lr = lr
+        self.batch_size = batch_size
+        self.num_epoch = num_epoch
+        self.target_column = target_column
+        self.number_features_input = number_features_input
+        self.number_features_output = number_features_output
+        self.loss_function = loss_function
+        self.optimizer = optimizer
+        self.normalizer = normalizer
+        self.use_scheduler = use_scheduler
+        self.validation_date = validation_date
+        self.test_date = test_date
+        self.load_model_name = load_model_name
+
+        metadata_key = ['n_residue',
+                        'n_skip',
+                        'dilation_depth',
+                        'n_repeat',
+                        'number_steps_predict',
+                        'lr',
+                        'batch_size',
+                        'num_epoch',
+                        'target_column',
+                        'number of features',
+                        'validation_date',
+                        'test_date']
+
+        metadata_value = [self.n_residue,
+                          self.n_skip,
+                          self.dilation_depth,
+                          self.n_repeat,
+                          self.number_steps_predict,
+                          self.lr,
+                          self.batch_size,
+                          self.num_epoch,
+                          self.target_column,
+                          self.number_features_input,
+                          self.validation_date,
+                          self.test_date]
 
         metadata_dict = {}
         for i in range(len(metadata_key)):
             metadata_dict[metadata_key[i]] = metadata_value[i]
 
-        # Data Reader
-        self.datareader = DataReader(data_path, **kwargs)
-        # File Logger
-        self.filelogger = FileLogger(logger_path, name, load_model_name)
-        # Tensorboard
-        self.tensorboard = SummaryWriter(logger_path + name + '/tensorboard/')
-        # model
-        self.model = WaveNetModelContinuos(number_features, n_residue, n_skip, dilation_depth,
-                                           n_repeat)  # model parameters here
-
-        # Hyper-parameters
-        self.number_steps_predict = number_steps_predict
-        self.lr = lr
-        self.batch_size = batch_size
-        self.num_epoch = num_epoch
-
-        # Optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-
-        # Loss function
-        self.criterion = nn.MSELoss()
-
-        # Check cuda availability
-        self.use_cuda = torch.cuda.is_available()
-
-        if self.use_cuda:
-            self.model.cuda()
-
-        # Check if we want to load previous model
-        self.logger_path = logger_path
-        self.file_name = self.filelogger.file_name
-
+        # check if it's to load model or not
         if self.filelogger.load_model is not None:
             self.load(self.filelogger.load_model)
             print('Load model from {}'.format(
                 self.logger_path + self.file_name + 'model_checkpoint/' + self.filelogger.load_model))
         else:
+            self.model = WaveNetModelContinuos(self.number_features_input,
+                                               self.number_steps_predict,
+                                               self.n_residue,
+                                               self.n_skip,
+                                               self.dilation_depth,
+                                               self.n_repeat)
+
+            input_size = self.model.calculate_receptive_field(1)
+
+            assert self.number_steps_train > input_size, 'Not Enough values to train'
+
+            self.output_size = self.model.calculate_output_receptive_field(self.number_steps_train)
+
             self.filelogger.write_metadata(metadata_dict)
 
-        # Prepare variables(infer how many steps we should look back for example) and generators for training, validation and test loop
-        self.datareader.preprocessing_data(self.model.calculate_receptive_field(self.number_steps_predict),
-                                           self.number_steps_predict, self.batch_size,
-                                           validation_date,
-                                           test_date)
+        # loss function
+        if loss_function == 'MSE':
+            self.criterion = nn.MSELoss()
 
-        self.train_generator = self.datareader.generator_train(self.batch_size, target_column, allow_smaller_batch=True)
+        # optimizer
+        if optimizer == 'Adam':
+            self.model_optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
+        if optimizer == 'SGD':
+            self.model_optimizer = optim.SGD(self.model.parameters(), lr=self.lr)
+        if optimizer == 'RMSProp':
+            self.model_optimizer = optim.RMSprop(self.model.parameters(), lr=self.lr)
+        if optimizer == 'Adadelta':
+            self.model_optimizer = optim.Adadelta(self.model.parameters(), lr=self.lr)
+        if optimizer == 'Adagrad':
+            self.model_optimizer = optim.Adagrad(self.model.parameters(), lr=self.lr)
 
-        if validation_date is not None:
-            self.validation_generator = self.datareader.generator_validation(self.batch_size, target_column)
-        if test_date is not None:
-            self.test_generator = self.datareader.generator_test(self.batch_size, target_column)
+        if self.use_scheduler:
+            self.scheduler = ReduceLROnPlateau(self.model_optimizer, 'min', patience=2, threshold=1e-5)
 
-    def save(self, model_name):
-        path = self.logger_path + self.file_name + '/model_checkpoint/'
-        if not os.path.exists(path):
-            os.makedirs(path)
-        torch.save(self.model, path + model_name)
-
-    def load(self, path_name):
-        self.model = torch.load(path_name)
+        # check CUDA availability
         if self.use_cuda:
             self.model.cuda()
 
-    def train(self):
+    def prepare_datareader(self):
+        # prepare datareader
 
-        try:
 
-            train_loss_batch = []
-            validation_loss_batch = []
+        self.datareader.preprocessing_data(self.number_steps_train,
+                                           self.number_steps_predict,
+                                           self.batch_size,
+                                           self.validation_date,
+                                           self.test_date,
+                                           self.normalizer)
+        # Initialize train generator
+        self.train_generator = self.datareader.generator_train(self.batch_size,
+                                                               self.target_column,
+                                                               allow_smaller_batch=True)
 
-            training_step = 0
-            validation_step = 0
+        # Initialize validation and test generator
+        if self.validation_date is not None:
+            self.validation_generator = self.datareader.generator_validation(self.batch_size,
+                                                                             self.target_column)
 
-            train_log_interval = 10
-            validation_log_interval = 10
+        if self.test_date is not None:
+            self.test_generator = self.datareader.generator_test(self.batch_size,
+                                                                 self.target_column)
 
-            train_time_elapsed = 0
-            validation_time_elapsed = 0
+    def prepare_datareader_cv(self, cv_train, cv_val):
+        # prepare datareader
+        self.datareader.preprocessing_data_cv(self.number_steps_train,
+                                              self.number_steps_predict,
+                                              self.batch_size,
+                                              cv_train,
+                                              cv_val,
+                                              self.normalizer)
+        # Initialize train generator
+        self.train_generator = self.datareader.generator_train(self.batch_size,
+                                                               self.target_column,
+                                                               allow_smaller_batch=True)
 
-            best_loss = 100000
+        if self.validation_date is not None:
+            self.validation_generator = self.datareader.generator_validation(self.batch_size,
+                                                                             self.target_column)
 
-            for epoch in range(self.num_epoch):
-                total_train_loss = 0
-                for batch_train in range(2):
-                    self.model.train()
-                    begin = time.time()
+    def training_step(self):
 
-                    self.optimizer.zero_grad()
+        self.model_optimizer.zero_grad()
+        loss = 0
+        X, Y = next(self.train_generator)
+        length = X.shape[0]
+        Y = np.concatenate((X[:, 1:, 0], np.expand_dims(Y[:, 0], axis=1)), axis=1)
+        Y = Y[:, -self.output_size:]
+        X = Variable(torch.from_numpy(X)).float().cuda()
+        Y = Variable(torch.from_numpy(Y)).float()
 
-                    loss = 0
+        results = self.model(X)
 
-                    X, Y = next(self.train_generator)
+        loss = self.criterion(results, Y.unsqueeze(2).cuda())
 
-                    X = Variable(torch.from_numpy(X)).float().cuda()
-                    Y = Variable(torch.from_numpy(Y)).float().cuda()
+        loss.backward()
+        self.model_optimizer.step()
 
-                    results = self.model(X)
+        return loss.data[0], loss.data[0] * length
 
-                    loss = self.criterion(results, Y.unsqueeze(1))
+    def evaluation_step(self):
 
-                    loss.backward()
-                    self.optimizer.step()
+        X, Y = next(self.validation_generator)
+        length = X.shape[0]
+        X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
+        Y = Variable(torch.from_numpy(Y), requires_grad=False, volatile=True).float().cuda()
 
-                    loss = loss.data[0]
-                    total_train_loss += loss
-                    train_loss_batch.append(loss)
+        results = self.model.predict(X)
 
-                    self.tensorboard.add_scalar('Training Mean Squared Error loss per batch', loss, training_step)
-                    time_batch = begin - time.time()
-                    train_time_elapsed += time_batch
-                    self.filelogger.write_train(train_log_interval, (training_step), (epoch), (batch_train), (loss),
-                                                (train_time_elapsed), 'Mean Squared Error')
+        valid_loss = self.criterion(results, Y.unsqueeze(2))
 
-                    training_step += 1
+        return valid_loss.data[0], valid_loss.data[0] * length
 
-                train_loss = total_train_loss / (self.datareader.train_steps)  # this is not calculated correctly
-                self.tensorboard.add_scalar('Training Mean Squared Error loss per epoch', train_loss, epoch)
+    def prediction_step(self):
 
-                total_valid_loss = 0
-                for batch_valid in range(self.datareader.validation_steps):
-                    self.model.eval()
-                    valid_begin = time.time()
+        X, Y = next(self.test_generator)
+        X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
 
-                    X, Y = next(self.validation_generator)
+        results = self.model.predict(X)
 
-                    X = Variable(torch.from_numpy(X), requires_grad=False).float().cuda()
-                    Y = Variable(torch.from_numpy(Y), requires_grad=False).float().cuda()
-
-                    results = self.model(X)
-
-                    valid_loss = self.criterion(results, Y.unsqueeze(1))
-
-                    valid_loss = valid_loss.data[0]
-
-                    total_valid_loss += valid_loss
-
-                    validation_loss_batch.append(valid_loss)
-
-                    self.tensorboard.add_scalar('Validation Mean Squared Error loss per batch', valid_loss,
-                                                validation_step)
-
-                    valid_time_batch = valid_begin - time.time()
-                    validation_time_elapsed += valid_time_batch
-                    self.filelogger.write_valid(validation_log_interval, (validation_step), (epoch), (batch_valid),
-                                                (valid_loss), (validation_time_elapsed), 'Mean Squared Error')
-
-                    validation_step += 1
-
-                validation_loss = total_valid_loss / (
-                self.datareader.validation_steps)  # this is not calculated correctly
-                self.tensorboard.add_scalar('Validation CMean Squared Error loss per epoch', validation_loss, epoch)
-
-                if validation_loss < best_loss:
-                    best_loss = validation_loss
-
-                    print('Validation loss improved!')
-                    self.save('Wavenet_checkpoint_epoch_' + str(epoch + 1) + '_valid_loss_' + str(best_loss) + '.pth')
-                else:
-                    print('Validation loss did not improved!')
-
-        except KeyboardInterrupt:
-            print("Shutdown requested...saving and exiting")
-            self.filelogger.write_train(train_log_interval, (training_step), (epoch), (batch_train), (loss),
-                                        (train_time_elapsed), 'Cross_entropy')
-            self.filelogger.write_valid(validation_log_interval, (validation_step), (epoch), (batch_valid),
-                                        (valid_loss), (validation_time_elapsed), 'Cross_entropy')
-            self.save('Wavenet_save_before_exiting_epoch_' + str(epoch + 1) + '_batch_' + str(
-                batch_train) + '_batch_valid_' + str(batch_valid) + '.pth')
-        except Exception:
-            self.filelogger.write_train(train_log_interval, (training_step), (epoch), (batch_train), (loss),
-                                        (train_time_elapsed), 'Cross_entropy')
-            self.filelogger.write_valid(validation_log_interval, (validation_step), (epoch), (batch_valid),
-                                        (valid_loss), (validation_time_elapsed), 'Cross_entropy')
-            self.save('Wavenet_save_before_exiting_epoch_' + str(epoch + 1) + '_batch_' + str(
-                batch_train) + '_batch_valid_' + str(batch_valid) + '.pth')
-            traceback.print_exc(file=sys.stdout)
-            sys.exit(0)
-
-    def predict_generating(self, n_steps=None):
-        if n_steps is None:
-            n_steps = self.datareader.N
-
-        predictions = []
-        labels = []
-        for batch_test in range(self.datareader.test_steps):
-            self.model.eval()
-            test_begin = time.time()
-
-            total_testloss = 0
-            X, Y = next(self.test_generator)
-
-            X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
-            prediction = self.model.generate_slow(X, n_steps)
-            predictions.append(
-                prediction.cpu().data.numpy())  # turn on numpy again // process here ? retun label also? too many decisions too little time
-            labels.append(Y)
-
-        return np.concatenate(predictions), np.concatenate(labels)
-
-    def predict(self):
-        predictions = []
-        labels = []
-        for batch_test in range(self.datareader.test_steps):
-            self.model.eval()
-            test_begin = time.time()
-
-            total_testloss = 0
-            X, Y = next(self.test_generator)
-
-            X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
-
-            prediction = self.model.predict(X)
-            predictions.append(
-                prediction.cpu().data.numpy())  # turn on numpy again // process here ? retun label also? too many decisions too little time
-            labels.append(Y)
-
-        return np.concatenate(predictions), np.concatenate(labels)
-
-    def postprocess(self, predictions, labels):
-
-        predictions = self.datareader.normalizer.inverse_transform(predictions[:, :, 0])
-        labels = self.datareader.normalizer.inverse_transform(labels)
-
-        mse = mean_squared_error(predictions, labels)
-        mae = mean_absolute_error(predictions, labels)
-
-        target = self.datareader.data.iloc[self.datareader.test_indexes]
-
-        return mean_predictions(predictions), target, mse, mae
-
+        return results, Y

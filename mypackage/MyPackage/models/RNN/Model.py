@@ -25,9 +25,9 @@ class RNNModel(nn.Module):
         self.cell_type = cell_type
         self.output_size = output_size
 
-        assert self.cell_type in ['LSTM', 'RNN', 'GRU', 'DRNN', 'QRNN', 'TCN'], 'Not Implemented, choose on of the' \
-                                                                           'following options - ' \
-                                                                           'LSTM, RNN, GRU, DRNN, QRNN, TCN'
+        assert self.cell_type in ['LSTM', 'RNN', 'GRU', 'DRNN', 'QRNN', 'TCN'], \
+            'Not Implemented, choose on of the following options - ' \
+            'LSTM, RNN, GRU, DRNN, QRNN, TCN'
 
         if self.cell_type == 'LSTM':
             self.encoder_cell = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True)
