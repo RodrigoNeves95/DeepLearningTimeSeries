@@ -39,7 +39,7 @@ def get_model(params):
                                     lr=args.lr,
                                     batch_size=args.batch_size,
                                     num_epoch=args.epochs,
-                                    target_column='SSG Wind',
+                                    target_column='Power',
                                     optimizer=args.optimizer,
                                     normalizer=args.normalization,
                                     use_scheduler=args.scheduler,
@@ -47,7 +47,7 @@ def get_model(params):
                                     valid_log_interval=args.valid_log,
                                     validation_date='2015-01-01 00:00:00',
                                     test_date='2016-01-01 00:00:00',
-                                    index_col=['Date and hour'],
+                                    index_col=['Date'],
                                     parse_dates=True)
 
     return model
@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script Variables')
     parser.add_argument('--SCRIPTS_FOLDER', default='/home/rneves/temp/temp_logger/', type=str,
                         help='Main Folder to save all files')
-    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_all.csv', type=str,
+    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_15min.csv', type=str,
                         help='path for data file')
     parser.add_argument('--file', default='runs', type=str,
                         help='Directory to store files')

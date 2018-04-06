@@ -60,7 +60,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script Variables')
     parser.add_argument('--SCRIPTS_FOLDER', default='/home/rneves/temp/temp_logger/', type=str,
                         help='Main Folder to save all files')
-    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_all.csv', type=str,
+    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_15min.csv', type=str,
                         help='path for data file')
     parser.add_argument('--file', default='runs', type=str,
                         help='Directory to store files')
@@ -174,10 +174,10 @@ if __name__ == "__main__":
                        normalizer = args.normalization,
                        optimizer = args.optimizer,
                        use_script=True,
-                       target_column='SSG Wind',
+                       target_column='Power',
                        validation_date='2015-01-01 00:00:00',
                        test_date='2016-01-01 00:00:00',
-                       index_col = ['Date and hour'],
+                       index_col = ['Date'],
                        parse_dates = True )
 
     model.train(args.patience)
