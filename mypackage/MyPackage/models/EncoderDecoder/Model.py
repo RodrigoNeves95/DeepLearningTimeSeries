@@ -29,8 +29,6 @@ class Encoder(nn.Module):
         if cell_type == 'RNN':
             self.encoder_cell = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
 
-        print(self.encoder_cell)
-
     def forward(self, x, hidden=None):
         output, hidden_state = self.encoder_cell(x, hidden)  #returns output variable - all hidden states for seq_len, hindden state - last hidden state
 
@@ -84,8 +82,6 @@ class Decoder(nn.Module):
             self.decoder_cell = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         if cell_type == 'RNN':
             self.decoder_cell = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-
-        print(self.decoder_cell)
 
         self.output_layer = nn.Linear(hidden_size, output_size)
 

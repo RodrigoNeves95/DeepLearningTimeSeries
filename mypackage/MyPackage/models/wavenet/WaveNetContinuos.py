@@ -107,13 +107,12 @@ class WaveNetContinuosTrainer(Trainer):
                  dilation_depth,
                  n_repeat,
                  number_steps_predict,
-                 number_steps_train,
                  lr,
                  batch_size,
                  num_epoch,
                  target_column,
-                 number_features_input,
-                 number_features_output,
+                 number_features_input=1,
+                 number_features_output=1,
                  loss_function='MSE',
                  optimizer='Adam',
                  normalizer='Standardization',
@@ -130,7 +129,6 @@ class WaveNetContinuosTrainer(Trainer):
         self.dilation_depth = dilation_depth
         self.n_repeat = n_repeat
         self.number_steps_predict = number_steps_predict
-        self.number_steps_train = number_steps_train
         self.lr = lr
         self.batch_size = batch_size
         self.num_epoch = num_epoch
@@ -188,13 +186,8 @@ class WaveNetContinuosTrainer(Trainer):
                                                self.dilation_depth,
                                                self.n_repeat)
 
-            input_size = self.model.calculate_receptive_field(1)
+            self.number_steps_train = self.model.calculate_receptive_field(self.number_steps_predict)
 
-            if number_steps_train < input_size:
-                print('changing')
-                self.number_steps_train = input_size
-
-            self.output_size = self.model.calculate_output_receptive_field(self.number_steps_train)
             self.filelogger.write_metadata(metadata_dict)
 
         # loss function
@@ -268,7 +261,7 @@ class WaveNetContinuosTrainer(Trainer):
         X, Y = next(self.train_generator)
         length = X.shape[0]
         Y = np.concatenate((X[:, 1:, 0], np.expand_dims(Y[:, 0], axis=1)), axis=1)
-        Y = Y[:, -self.output_size:]
+        Y = Y[:, -self.number_steps_predict:]
         X = Variable(torch.from_numpy(X)).float().cuda()
         Y = Variable(torch.from_numpy(Y)).float()
 
