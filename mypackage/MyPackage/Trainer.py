@@ -352,10 +352,9 @@ class Trainer(object):
         mae = mean_absolute_error(predictions, labels)
 
         target = self.datareader.data.iloc[self.datareader.test_indexes[:-1]]
+        results = target.assign(predictions=pd.Series(mean_predictions(predictions), index=target.index).values)
 
-        target['predictions'] = mean_predictions(predictions)
-
-        return target, mse, mae
+        return results, mse, mae
 
     def get_best(self):
 
@@ -374,9 +373,23 @@ class Trainer(object):
 
 if __name__ == "__main__":
 
+    import sys, warnings, traceback, torch
+
+
+    def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+        sys.stderr.write(warnings.formatwarning(message, category, filename, lineno, line))
+        traceback.print_stack(sys._getframe(2))
+
+
+    warnings.showwarning = warn_with_traceback;
+    warnings.simplefilter('always', UserWarning);
+    torch.utils.backcompat.broadcast_warning.enabled = True
+    torch.utils.backcompat.keepdim_warning.enabled = True
+
     from MyPackage.models import WaveNetContinuosTrainer, RNNTrainer, EncoderDecoderTrainer
 
-    model = WaveNetContinuosTrainer(data_path='/datadrive/wind_power/wind_all.csv',
+    '''
+    model = WaveNetContinuosTrainer(data_path='/datadrive/wind_power/wind_15min.csv',
                                     logger_path='/home/rneves/temp/temp_logger/',
                                     model_name='Test_EncoderDecoder2',
                                     train_log_interval=100,
@@ -389,7 +402,7 @@ if __name__ == "__main__":
                                     lr=0.001,
                                     batch_size=256,
                                     num_epoch=1,
-                                    target_column='SSG Wind',
+                                    target_column='Power',
                                     number_features_input=1,
                                     number_features_output=1,
                                     loss_function='MSE',
@@ -399,10 +412,11 @@ if __name__ == "__main__":
                                     use_script=True,
                                     validation_date='2015-01-01 00:00:00',
                                     test_date='2016-01-01 00:00:00',
-                                    index_col=['Date and hour'],
+                                    index_col=['Date'],
                                     parse_dates=True)
+    
     '''
-
+    '''
     model = RNNTrainer(data_path='/datadrive/wind_power/wind_all.csv',
                        logger_path='/home/rneves/temp/temp_logger/',
                        model_name='Run_Best_Model',
@@ -414,9 +428,9 @@ if __name__ == "__main__":
                        num_epoch=1,
                        hidden_size=4,
                        num_layers=2,
-                       cell_type='TCN',
+                       cell_type='DRNN',
                        kernel_size=3,
-                       target_column='SSG Wind',
+                       target_column='Power',
                        validation_date='2015-01-01 00:00:00',
                        test_date='2016-01-01 00:00:00',
                        train_log_interval=100,
@@ -424,12 +438,12 @@ if __name__ == "__main__":
                        use_scheduler=False,
                        normalizer='Standardization',
                        optimizer='Adam',
-                       index_col=['Date and hour'],
+                       index_col=['Date'],
                        parse_dates=True)
+
     '''
-    '''
-    model = EncoderDecoderTrainer(data_path='/datadrive/wind_power/wind_all.csv',
-                                  logger_path='/home/rneves/temp/temp_logger/',
+    model = EncoderDecoderTrainer(data_path='/datadrive/wind_power/wind_15min.csv',
+                                  logger_path='/home/rneves/temp/temp_logger',
                                   model_name='Test_EncoderDecoder',
                                   lr=0.001,
                                   number_steps_train=2,
@@ -439,13 +453,13 @@ if __name__ == "__main__":
                                   hidden_size_encoder=2,
                                   hidden_size_decoder=2,
                                   num_layers=1,
-                                  cell_type_encoder='RNN',
-                                  cell_type_decoder='RNN',
+                                  cell_type_encoder='LSTM',
+                                  cell_type_decoder='LSTM',
                                   number_features_encoder=1,
                                   number_features_decoder=1,
                                   number_features_output=1,
                                   use_attention=True,
-                                  target_column='SSG Wind',
+                                  target_column='Power',
                                   validation_date='2015-01-01 00:00:00',
                                   test_date='2016-01-01 00:00:00',
                                   train_log_interval=100,
@@ -453,14 +467,14 @@ if __name__ == "__main__":
                                   use_scheduler=True,
                                   normalizer='Standardization',
                                   use_script=True,
-                                  index_col=['Date and hour'],
+                                  index_col=['Date'],
                                   parse_dates=True)
-    '''
+
 
     #model.train_cv(2, 365, 2)
     model.train(2)
     model.get_best()
     predictions, labels = model.predict()
     final_df, mse, mae = model.postprocess(predictions, labels)
-    model.filelogger.write_results(predictions, labels, final_df, mae, mse)
+    model.filelogger.write_results(predictions, labels, final_df, mse, mae)
     print('Done!')

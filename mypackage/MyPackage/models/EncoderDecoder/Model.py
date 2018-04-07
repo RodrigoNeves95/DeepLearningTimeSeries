@@ -58,7 +58,7 @@ class Attn(nn.Module):
         this_batch_size = encoder_outputs.size(0)  # batch size dimensio
         H = hidden.repeat(max_len, 1, 1).transpose(0, 1)  # Repeat hidden from decoder
         attn_score = self.score(H, encoder_outputs)  # compute attention score
-        return F.softmax(attn_score).unsqueeze(1)  # normalize with softmax - attn weights, check dimensions
+        return F.softmax(attn_score, dim=1).unsqueeze(1)  # normalize with softmax - attn weights, check dimensions
 
     def score(self, hidden, encoder_outputs):
         energy = F.tanh(self.attn(torch.cat([hidden, encoder_outputs], 2)))  # [B*T*2H]->[B*T*H]

@@ -96,7 +96,7 @@ class WaveNetModelContinuos(nn.Module):
             y = self.forward(x)
             i = y.permute(0, 2, 1)
             del (y)
-            res = torch.cat((res, i[:, 0, :]), dim=1)
+            res = torch.cat((res, i[:, -1:, :]), dim=1)
         return res[:, -self.number_steps_predict:, 0]
 
 
@@ -123,6 +123,8 @@ class WaveNetContinuosTrainer(Trainer):
                  **kwargs):
 
         super(WaveNetContinuosTrainer, self).__init__(**kwargs)
+
+        torch.manual_seed(SEED)
 
         self.n_residue = n_residue
         self.n_skip = n_skip
