@@ -86,12 +86,12 @@ class Trainer(object):
                                  unit=' Epochs')
 
             for epoch in epoch_range:
-                batch_train_range = trange(int(20),
+                batch_train_range = trange(int(self.datareader.train_steps),
                                            desc='2st loop',
                                            unit=' Batch',
                                            leave=True)
 
-                batch_valid_range = trange(int(20),
+                batch_valid_range = trange(int(self.datareader.validation_steps),
                                            desc='2st loop',
                                            unit=' Batch',
                                            leave=True)
@@ -226,12 +226,12 @@ class Trainer(object):
                                      leave=True)
 
                 for epoch in epoch_range:
-                    batch_train_range = trange(int(20),
+                    batch_train_range = trange(int(self.datareader.train_steps),
                                                desc='2st loop',
                                                unit=' Batch',
                                                leave=False)
 
-                    batch_valid_range = trange(int(20),
+                    batch_valid_range = trange(int(self.datareader.validation_steps),
                                                desc='2st loop',
                                                unit=' Batch',
                                                leave=False)
