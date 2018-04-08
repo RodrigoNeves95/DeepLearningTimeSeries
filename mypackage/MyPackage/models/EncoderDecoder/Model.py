@@ -252,6 +252,10 @@ class EncoderDecoderTrainer(Trainer):
         # Save metadata model
         metadata_key = ['number_steps_train',
                         'number_steps_predict',
+                        'hidden_size',
+                        'num_layers',
+                        'cell_type',
+                        'use_attention'
                         'lr',
                         'batch_size',
                         'num_epoch',
@@ -261,6 +265,10 @@ class EncoderDecoderTrainer(Trainer):
 
         metadata_value = [self.number_steps_train,
                           self.number_steps_predict,
+                          self.hidden_size_encoder,
+                          self.num_layers,
+                          self.cell_type_decoder,
+                          self.use_attention,
                           self.lr,
                           self.batch_size,
                           self.num_epoch,

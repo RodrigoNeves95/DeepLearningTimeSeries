@@ -145,35 +145,6 @@ class WaveNetContinuosTrainer(Trainer):
         self.test_date = test_date
         self.load_model_name = load_model_name
 
-        metadata_key = ['n_residue',
-                        'n_skip',
-                        'dilation_depth',
-                        'n_repeat',
-                        'number_steps_predict',
-                        'lr',
-                        'batch_size',
-                        'num_epoch',
-                        'target_column',
-                        'number of features',
-                        'validation_date',
-                        'test_date']
-
-        metadata_value = [self.n_residue,
-                          self.n_skip,
-                          self.dilation_depth,
-                          self.n_repeat,
-                          self.number_steps_predict,
-                          self.lr,
-                          self.batch_size,
-                          self.num_epoch,
-                          self.target_column,
-                          self.number_features_input,
-                          self.validation_date,
-                          self.test_date]
-
-        metadata_dict = {}
-        for i in range(len(metadata_key)):
-            metadata_dict[metadata_key[i]] = metadata_value[i]
 
         # check if it's to load model or not
         if self.filelogger.load_model is not None:
@@ -189,6 +160,36 @@ class WaveNetContinuosTrainer(Trainer):
                                                self.n_repeat)
 
             self.number_steps_train = self.model.calculate_receptive_field(self.number_steps_predict)
+
+            metadata_key = ['n_residue',
+                            'n_skip',
+                            'dilation_depth',
+                            'n_repeat',
+                            'number_steps_predict',
+                            'number_steps_train',
+                            'lr',
+                            'batch_size',
+                            'num_epoch',
+                            'target_column',
+                            'validation_date',
+                            'test_date']
+
+            metadata_value = [self.n_residue,
+                              self.n_skip,
+                              self.dilation_depth,
+                              self.n_repeat,
+                              self.number_steps_predict,
+                              self.number_steps_train,
+                              self.lr,
+                              self.batch_size,
+                              self.num_epoch,
+                              self.target_column,
+                              self.validation_date,
+                              self.test_date]
+
+            metadata_dict = {}
+            for i in range(len(metadata_key)):
+                metadata_dict[metadata_key[i]] = metadata_value[i]
 
             self.filelogger.write_metadata(metadata_dict)
 

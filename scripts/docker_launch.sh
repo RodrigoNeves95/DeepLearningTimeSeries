@@ -21,28 +21,50 @@ error() {
 }
 
 build() {
-  log "Building image!"
-  sudo docker build -t $IMAGE_NAME \
+    log "Building image!"
+    sudo docker build -t $IMAGE_NAME \
                     --build-arg GIT_USER=$(cat ~/.github/user) \
                     --build-arg GIT_TOKEN=$(cat ~/.github/token) \
                     .
 
-  [ $? != 0 ] && error "Docker image build failed !" && exit 100
+    [ $? != 0 ] && error "Docker image build failed !" && exit 100
 }
 
-RNNTrainer() {
-  log "RNN run for 15 minutes interval!"
+deploy() {
+    log "Deploy to debug!"
 
-  sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=$1 -it --rm \
+    sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=1 -it --rm \
          -v /home/rodrigo/datadrive/wind_power/data/:/datadrive/wind_power/ \
          -v /home/rodrigo/datadrive/wind_power/results/15min/:/workspace/15min/ \
+         --name RNNScript_15min_$2_$3 \
          $IMAGE_NAME \
          bash -c "python RNNScript.py --data_path /datadrive/wind_power/wind_15min.csv \
                                       --SCRIPTS_FOLDER /workspace/15min \
-                                      --file RNN_$2 \
-                                      --predict_steps $2"
+                                      --model $2 \
+                                      --file $2_$3 \
+                                      --predict_steps $3"
 
-  [ $? != 0 ] && error "Failed!" && exit 101
+    [ $? != 0 ] && error "Failed!" && exit 101
+}
+
+RNNScript() {
+    log "Deploy 3 RNN scrpits using $2 cell for 15 minutes interval!"
+
+    for VARIABLE in 4 24 96
+    do
+        sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=$1 -it --rm -d \
+             -v /home/rodrigo/datadrive/wind_power/data/:/datadrive/wind_power/ \
+             -v /home/rodrigo/datadrive/wind_power/results/15min/:/workspace/15min/ \
+             --name RNNScript_15min_$2_$VARIABLE \
+             $IMAGE_NAME \
+             bash -c "python RNNScript.py --data_path /datadrive/wind_power/wind_15min.csv \
+                                          --SCRIPTS_FOLDER /workspace/15min \
+                                          --model $2 \
+                                          --file $2_$VARIABLE \
+                                          --predict_steps $VARIABLE"
+    done
+
+    [ $? != 0 ] && error "Failed!" && exit 101
 }
 
 bower() {
