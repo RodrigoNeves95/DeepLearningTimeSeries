@@ -69,14 +69,14 @@ if __name__ == "__main__":
                         help='Size in days for cross val fold')
     parser.add_argument('--predict_steps', type=int, default=10,
                         help='Number of steps to forecast')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.005, type=float,
                         help='learning rate')
     parser.add_argument('--batch_size', default=256, type=int,
                         help='Batch Size')
     parser.add_argument('--epochs', default=10, type=int,
                         help='Maximum number of epochs')
     parser.add_argument('--model', default='RNN', type=str,
-                        choices=['RNN', 'LSTM', 'GRU', 'QRNN', 'TCN', 'DRNN'],
+                        choices=['RNN', 'LSTM', 'GRU'],
                         help='Model to use. Check available models')
     parser.add_argument('--use_attention', default=False, type=bool,
                         help='Attention usage flag')
@@ -89,13 +89,13 @@ if __name__ == "__main__":
                         help='Normalization to use')
     parser.add_argument('--scheduler', default=False, type=bool,
                         help='Flag to choose to use lr scheduler')
-    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 15],
+    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 500],
                         help='Interval to be optimized')
-    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 6],
+    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 50],
                         help='Interval to be optimized')
-    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 2],
+    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 10],
                         help='Interval to be optimized')
-    parser.add_argument('--initial_point', nargs=3, type=int, default=[10, 5, 2],
+    parser.add_argument('--initial_point', nargs=3, type=int, default=[50, 10, 2],
                         help='Initial point for optimization')
     parser.add_argument('--N_CALLS', default=30, type=int,
                         help='Number of calls for optmization')
@@ -106,8 +106,6 @@ if __name__ == "__main__":
                         help='Optimizer to use')
     parser.add_argument('--patience', default=3, type=int,
                         help='Number of steps to stop train loop after no improvment in validation set')
-    parser.add_argument('--file_name', type=str,
-                        help='Name of file to save all the schnitzel')
 
     args = parser.parse_args()
 

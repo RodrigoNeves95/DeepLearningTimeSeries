@@ -70,7 +70,7 @@ if __name__ == "__main__":
                         help='Size in days for cross val fold')
     parser.add_argument('--predict_steps', type=int, default=10,
                         help='Number of steps to forecast')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.005, type=float,
                         help='learning rate')
     parser.add_argument('--batch_size', default=256, type=int,
                         help='Batch Size')
@@ -88,15 +88,15 @@ if __name__ == "__main__":
                         help='Normalization to use')
     parser.add_argument('--scheduler', default=False, type=bool,
                         help='Flag to choose to use lr scheduler')
-    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 15],
+    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 500],
                         help='Interval to be optimized')
-    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 6],
+    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 50],
                         help='Interval to be optimized')
-    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 2],
+    parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 10],
                         help='Interval to be optimized')
     parser.add_argument('--kernel_size', nargs=2, type=int, default=[2, 50],
                         help='Interval of kernel size for TCN and QRNN models')
-    parser.add_argument('--initial_point', nargs=4, type=int, default=[10, 5, 2, 10],
+    parser.add_argument('--initial_point', nargs=4, type=int, default=[50, 10, 2, 10],
                         help='Initial point for optimization')
     parser.add_argument('--N_CALLS', default=30, type=int,
                         help='Number of calls for optmization')
@@ -114,7 +114,6 @@ if __name__ == "__main__":
 
     if not os.path.exists(args.SCRIPTS_FOLDER + args.file):
         path  = args.SCRIPTS_FOLDER + '/' + args.file
-
         os.makedirs(path)
     else:
         sys.exit('This directory already exists. Check if you want to overwrite it, then remove it manually.')

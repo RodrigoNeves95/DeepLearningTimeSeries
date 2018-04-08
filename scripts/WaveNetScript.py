@@ -67,15 +67,12 @@ if __name__ == "__main__":
                         help='Size in days for cross val fold')
     parser.add_argument('--predict_steps', type=int, default=10,
                         help='Number of steps to forecast')
-    parser.add_argument('--lr', default=0.001, type=float,
+    parser.add_argument('--lr', default=0.005, type=float,
                         help='learning rate')
     parser.add_argument('--batch_size', default=256, type=int,
                         help='Batch Size')
     parser.add_argument('--epochs', default=10, type=int,
                         help='Maximum number of epochs')
-    parser.add_argument('--model', default='RNN', type=str,
-                        choices=['RNN', 'LSTM', 'GRU', 'QRNN', 'TCN', 'DRNN'],
-                        help='Model to use. Check available models')
     parser.add_argument('--train_log', default=100, type=int,
                         help='Number of steps to take log on train steps.')
     parser.add_argument('--valid_log', default=100, type=int,
@@ -85,7 +82,7 @@ if __name__ == "__main__":
                         help='Normalization to use')
     parser.add_argument('--scheduler', default=False, type=bool,
                         help='Flag to choose to use lr scheduler')
-    parser.add_argument('--num_repeat', nargs=2, type=int, default=[1, 3],
+    parser.add_argument('--num_repeat', nargs=2, type=int, default=[1, 5],
                         help='Interval to be optimized')
     parser.add_argument('--num_residue', nargs=2, type=int, default=[10, 40],
                         help='Interval to be optimized')
@@ -93,7 +90,7 @@ if __name__ == "__main__":
                         help='Interval to be optimized')
     parser.add_argument('--dilation_depth', nargs=2, type=int, default=[4, 10],
                         help='Interval of kernel size for TCN and QRNN models')
-    parser.add_argument('--initial_point', nargs=3, type=int, default=[20, 20, 5, 1],
+    parser.add_argument('--initial_point', nargs=3, type=int, default=[20, 20, 8, 1],
                         help='Initial point for optimization')
     parser.add_argument('--N_CALLS', default=30, type=int,
                         help='Number of calls for optmization')
