@@ -20,6 +20,7 @@ error() {
   echo -e "$RED >>> ERROR - $1$NORMAL"
 }
 
+
 build() {
     log "Building image!"
     sudo docker build -t $IMAGE_NAME \
@@ -67,48 +68,24 @@ RNNScript() {
     [ $? != 0 ] && error "Failed!" && exit 101
 }
 
-bower() {
-  log "Bower install"
-  docker run -it --rm -v $(pwd):/app -v /var/tmp/bower:$HOMEDIR/.bower $IMAGE_NAME \
-    /bin/bash -ci "$EXECUTE_AS bower install \
-      --config.interactive=false \
-      --config.storage.cache=$HOMEDIR/.bower/cache"
+RNNScriptJaguar() {
+    log "Deploy 3 RNN scrpits using $1 cell for 15 minutes interval!"
 
-  [ $? != 0 ] && error "Bower install failed !" && exit 102
-}
+    for VARIABLE in 4 24 96
+    do
+        sudo docker run --runtime=nvidia -it --rm -d \
+             -v /datadrive/wind_power/data/:/datadrive/wind_power/ \
+             -v /datadrive/wind_power/results/15min/:/workspace/15min/ \
+             --name RNNScript_15min_$1_$VARIABLE \
+             $IMAGE_NAME \
+             bash -c "python RNNScript.py --data_path /datadrive/wind_power/wind_15min.csv \
+                                          --SCRIPTS_FOLDER /workspace/15min \
+                                          --model $1 \
+                                          --file $1_$VARIABLE \
+                                          --predict_steps $VARIABLE"
+    done
 
-jkbuild() {
-  log "Jekyll build"
-  docker run -it --rm -v $(pwd):/app $IMAGE_NAME \
-    /bin/bash -ci "$EXECUTE_AS jekyll build"
-
-  [ $? != 0 ] && error "Jekyll build failed !" && exit 103
-}
-
-grunt() {
-  log "Grunt build"
-  docker run -it --rm -v $(pwd):/app $IMAGE_NAME \
-    /bin/bash -ci "$EXECUTE_AS grunt"
-
-  [ $? != 0 ] && error "Grunt build failed !" && exit 104
-}
-
-jkserve() {
-  log "Jekyll serve"
-  docker run -it -d --name="$CONTAINER_NAME" -p 4000:4000 -v $(pwd):/app $IMAGE_NAME \
-    /bin/bash -ci "jekyll serve -H 0.0.0.0"
-
-  [ $? != 0 ] && error "Jekyll serve failed !" && exit 105
-}
-
-install() {
-  echo "Installing full application at once"
-  remove
-  npm
-  bower
-  jkbuild
-  grunt
-  jkserve
+    [ $? != 0 ] && error "Failed!" && exit 101
 }
 
 bash() {
