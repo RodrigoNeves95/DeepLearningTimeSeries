@@ -5,7 +5,6 @@ NORMAL="\\033[0;39m"
 RED="\\033[1;31m"
 BLUE="\\033[1;34m"
 
-
 # Names to identify images and containers of this app
 IMAGE_NAME='wind_scripts'
 HOMEDIR="/workspace"

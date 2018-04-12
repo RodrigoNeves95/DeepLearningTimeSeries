@@ -281,6 +281,8 @@ class WaveNetContinuosTrainer(Trainer):
 
         X, Y = next(self.validation_generator)
         length = X.shape[0]
+        Y = np.concatenate((X[:, 1:, 0], np.expand_dims(Y[:, 0], axis=1)), axis=1)
+        Y = Y[:, -self.number_steps_predict:]
         X = Variable(torch.from_numpy(X), requires_grad=False, volatile=True).float().cuda()
         Y = Variable(torch.from_numpy(Y), requires_grad=False, volatile=True).float().cuda()
 

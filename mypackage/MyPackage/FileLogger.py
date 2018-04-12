@@ -16,7 +16,6 @@ class FileLogger(object):
 
             if not os.path.exists(self.path):
                 os.makedirs(self.path)
-                self.open_writers()
             else:
                 while True:
                     overwrite = input('This file already exists. Do you want to overwrite it?'
@@ -37,7 +36,6 @@ class FileLogger(object):
                     self.path = path + file_name + '/'
                     os.makedirs(self.path)
                     print('New directory created at {}'.format(self.path))
-                    self.open_writers()
 
                 if overwrite == 'Y':
                     while True:
@@ -48,7 +46,7 @@ class FileLogger(object):
                     if overwrite == 'Y':
                         shutil.rmtree(self.path)
                         os.makedirs(self.path)
-                        self.open_writers()
+
                     else:
                         assert overwrite is None, \
                             'Well then you should check your files before.' \
@@ -194,14 +192,7 @@ class FileLogger(object):
                 os.makedirs(self.path)
                 self.open_writers()
         else:
-            if not os.path.exists(self.path):
-                os.makedirs(self.path)
-                self.open_writers()
-            else:
-                print('removing')
-                shutil.rmtree(self.path)
-                os.makedirs(self.path)
-                self.open_writers()
+            self.open_writers()
 
     def write_results(self,
                       predictions,

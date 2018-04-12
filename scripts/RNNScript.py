@@ -9,6 +9,7 @@ from MyPackage.models import RNNTrainer
 
 global run_number
 
+
 def objective(params):
     try:
         model = get_model(params)
@@ -55,12 +56,13 @@ def get_model(params):
 
     return model
 
+
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description='Script Variables')
     parser.add_argument('--SCRIPTS_FOLDER', default='/home/rneves/temp/temp_logger', type=str,
                         help='Main Folder to save all files')
-    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_15min.csv', type=str,
+    parser.add_argument('--data_path', default='/datadrive/wind_power/data/wind_15min.csv', type=str,
                         help='path for data file')
     parser.add_argument('--file', default='runs', type=str,
                         help='Directory to store files')
@@ -102,18 +104,20 @@ if __name__ == "__main__":
                         help='Number of calls for optmization')
     parser.add_argument('--RANDOM_STARTS', default=10, type=int,
                         help='Number of random starts for optimization')
-    parser.add_argument('--optimizer' ,default='Adam', type=str,
+    parser.add_argument('--optimizer', default='Adam', type=str,
                         choices=['Adam', 'SGD', 'RMSProp', 'Adadelta', 'Adagrad'],
                         help='Optimizer to use')
     parser.add_argument('--patience', default=3, type=int,
                         help='Number of steps to stop train loop after no improvment in validation set')
-    parser.add_argument('--file_name', type=str,
-                        help='Name of file to save all the schnitzel')
+    parser.add_argument('--steps_to_predict', type=int, default=[4, 24, 96], nargs=3,
+                        help='Steps for predict using best model after optimization')
+    parser.add_argument('--steps_to_predict', type=int, default=[4, 24, 96], nargs=3,
+                        help='Steps for predict using best model after optimization')
 
     args = parser.parse_args()
 
     if not os.path.exists(args.SCRIPTS_FOLDER + args.file):
-        path  = args.SCRIPTS_FOLDER + '/' + args.file
+        path = args.SCRIPTS_FOLDER + '/' + args.file
         os.makedirs(path)
     else:
         sys.exit('This directory already exists. Check if you want to overwrite it, then remove it manually.')
@@ -125,19 +129,18 @@ if __name__ == "__main__":
 
     run_number = 0
 
-
-    if args.model == 'TCN' or 'QRNN':
-        space  = [Integer(args.train_steps[0], args.train_steps[1]),# number_steps_train
-                  Integer(args.hidden_size[0], args.hidden_size[1]),# hidden_size
-                  Integer(args.num_layers[0], args.num_layers[1]), # num_layers
-                  Integer(args.kernel_size[0], args.kernel_size[1])] # kernel_size
-    else:
+    if args.model in ['TCN', 'QRNN']:
         space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
                  Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size
-                 Integer(args.num_layers[0], args.num_layers[1]),   # num_layers
-                 10,10]   #kernel_size
-
-    initial_point = args.initial_point
+                 Integer(args.num_layers[0], args.num_layers[1]),  # num_layers
+                 Integer(args.kernel_size[0], args.kernel_size[1])]  # kernel_size
+        initial_point = args.initial_point
+    elif args.model in ['RNN', 'LSTM', 'GRU', 'DRNN'] :
+        space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
+                 Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size
+                 Integer(args.num_layers[0], args.num_layers[1]), # num_layers
+                 Integer(10, 10)]  #kernel_size
+        initial_point = args.initial_point
 
     res_gp = gp_minimize(objective,
                          space,
@@ -147,43 +150,43 @@ if __name__ == "__main__":
                          verbose=True,
                          n_random_starts=NRANDOMSTARTS)
 
-    print(res_gp)
-
-    print(res_gp.x)
-
     best_number_steps_train = int(res_gp.x[0])
     best_hidden_size = int(res_gp.x[1])
     best_num_layers = int(res_gp.x[2])
-    best_kernel_size = int(res_gp.x[3])
+    if args.model in ['TCN', 'QRNN']:
+        best_kernel_size = int(res_gp.x[3])
+    else:
+        best_kernel_size = 10
 
-    model = RNNTrainer(data_path = args.data_path,
-                       logger_path = path,
-                       model_name = 'Run_Best_Model',
-                       lr = args.lr,
-                       number_steps_train = best_number_steps_train,
-                       number_steps_predict = args.predict_steps,
-                       batch_size = args.batch_size,
-                       num_epoch = args.epochs,
-                       hidden_size = best_hidden_size,
-                       num_layers = best_num_layers,
-                       kernel_size=best_kernel_size,
-                       cell_type = args.model,
-                       train_log_interval = args.train_log,
-                       valid_log_interval = args.valid_log,
-                       use_scheduler = args.scheduler,
-                       normalizer = args.normalization,
-                       optimizer = args.optimizer,
-                       use_script=True,
-                       target_column='Power',
-                       validation_date='2015-01-01 00:00:00',
-                       test_date='2016-01-01 00:00:00',
-                       index_col = ['Date'],
-                       parse_dates = True )
+    for range in args.steps_to_predict:
 
-    model.train(args.patience)
-    model.get_best()
-    predictions, labels = model.predict()
-    final_df, mse, mae = model.postprocess(predictions, labels)
+        model = RNNTrainer(data_path=args.data_path,
+                           logger_path=path,
+                           model_name='Run_Best_Model_' + str(range),
+                           lr=args.lr,
+                           number_steps_train=best_number_steps_train,
+                           number_steps_predict=range,
+                           batch_size=args.batch_size,
+                           num_epoch=args.epochs,
+                           hidden_size=best_hidden_size,
+                           num_layers=best_num_layers,
+                           kernel_size=best_kernel_size,
+                           cell_type=args.model,
+                           train_log_interval=args.train_log,
+                           valid_log_interval=args.valid_log,
+                           use_scheduler=args.scheduler,
+                           normalizer=args.normalization,
+                           optimizer=args.optimizer,
+                           use_script=True,
+                           target_column='Power',
+                           validation_date='2015-01-01 00:00:00',
+                           test_date='2016-01-01 00:00:00',
+                           index_col=['Date'],
+                           parse_dates=True)
 
-    model.filelogger.write_results(predictions, labels, final_df, mse, mae)
+        model.train(args.patience)
+        model.get_best()
+        predictions, labels = model.predict()
+        final_df, mse, mae = model.postprocess(predictions, labels)
 
+        model.filelogger.write_results(predictions, labels, final_df, mse, mae)

@@ -101,8 +101,6 @@ if __name__ == "__main__":
                         help='Optimizer to use')
     parser.add_argument('--patience', default=3, type=int,
                         help='Number of steps to stop train loop after no improvment in validation set')
-    parser.add_argument('--file_name', type=str,
-                        help='Name of file to save all the schnitzel')
 
     args = parser.parse_args()
 
@@ -121,10 +119,10 @@ if __name__ == "__main__":
 
 
 
-    space  = [Integer(args.num_residue[0], args.num_residue[1]),# number_steps_train
-              Integer(args.num_skip[0], args.num_skip[1]),# hidden_size
-              Integer(args.dilation_depth[0], args.dilation_depth[1]), # num_layers
-              Integer(args.num_repeat[0], args.num_repeat[1])] # kernel_size
+    space = [Integer(args.num_residue[0], args.num_residue[1]),# number_steps_train
+             Integer(args.num_skip[0], args.num_skip[1]), # hidden_size
+             Integer(args.dilation_depth[0], args.dilation_depth[1]), # num_layers
+             Integer(args.num_repeat[0], args.num_repeat[1])] # kernel_size
 
     initial_point = args.initial_point
 
@@ -135,10 +133,6 @@ if __name__ == "__main__":
                          random_state=SEED,
                          verbose=True,
                          n_random_starts=NRANDOMSTARTS)
-
-    print(res_gp)
-
-    print(res_gp.x)
 
     best_num_residue = int(res_gp.x[0])
     best_num_skip = int(res_gp.x[1])
