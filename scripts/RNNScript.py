@@ -138,7 +138,7 @@ if __name__ == "__main__":
         space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
                  Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size
                  Integer(args.num_layers[0], args.num_layers[1]),    # num_layers
-                 Integer(10, 10)]                                    # kernel_size
+                 Integer(10, 11)]                                    # kernel_size
         initial_point = args.initial_point
 
     res_gp = gp_minimize(objective,

@@ -136,19 +136,18 @@ RNNScriptJaguar() {
     [ $? != 0 ] && error "Failed!" && exit 101
 }
 
-EncDecAttentionScript() {
-    log "Deploy 3 Encoder-Decoder Script using $2 cell and attention syste for 15 minutes interval!"
+EncDecScriptJaguar() {
+    log "Deploy 3 Encoder-Decoder Script using $1 cell for 15 minutes interval!"
     for VARIABLE in 4 24 96
     do
-        sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=$1 -it --rm -d \
+        sudo docker run --runtime=nvidia -it --rm -d \
              -v /datadrive/wind_power/data/:/datadrive/wind_power/ \
              -v /datadrive/wind_power/results/15min/:/workspace/15min/ \
-             --name RNNScript_15min_$2_$VARIABLE \
+             --name RNNScript_15min_$1_$VARIABLE \
              $IMAGE_NAME \
              bash -c "python EncDecScript.py --data_path /datadrive/wind_power/wind_15min.csv \
                                              --SCRIPTS_FOLDER /workspace/15min \
-                                             --use_attention True \
-                                             --file EncDecAttention_$2_$VARIABLE  \
+                                             --file EncDecAttention_$1_$VARIABLE  \
                                              --predict_steps $VARIABLE"
     done
     [ $? != 0 ] && error "Failed!" && exit 101

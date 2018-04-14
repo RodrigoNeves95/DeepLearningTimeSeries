@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.1-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:8.0-cudnn7-devel-ubuntu16.04
 
 ENV LC_ALL C.UTF-8
 ENV LANG C.UTF-8
@@ -23,7 +23,7 @@ RUN CONDA_VERSION="4.4.10" \
  && conda clean --all --yes \
  && conda config --add channels conda-forge
 
-RUN conda install -y pytorch torchvision cuda91 -c pytorch
+RUN conda install -y pytorch torchvision -c pytorch
 RUN conda install -y scikit-learn \
                      pandas \
                      numpy \
