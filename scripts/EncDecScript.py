@@ -59,13 +59,13 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script Variables')
     parser.add_argument('--SCRIPTS_FOLDER', default='/home/rneves/temp/temp_logger', type=str,
                         help='Main Folder to save all files')
-    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_15min.csv', type=str,
+    parser.add_argument('--data_path', default='/datadrive/wind_power/data/wind_15min.csv', type=str,
                         help='path for data file')
     parser.add_argument('--file', default='runs', type=str,
                         help='Directory to store files')
     parser.add_argument('--folds', default=3, type=int,
                         help='Number of folds for cross val')
-    parser.add_argument('--fold_size', default=365, type=int,
+    parser.add_argument('--fold_size', default=180, type=int,
                         help='Size in days for cross val fold')
     parser.add_argument('--predict_steps', type=int, default=10,
                         help='Number of steps to forecast')
@@ -73,7 +73,7 @@ if __name__ == "__main__":
                         help='learning rate')
     parser.add_argument('--batch_size', default=256, type=int,
                         help='Batch Size')
-    parser.add_argument('--epochs', default=10, type=int,
+    parser.add_argument('--epochs', default=6, type=int,
                         help='Maximum number of epochs')
     parser.add_argument('--model', default='RNN', type=str,
                         choices=['RNN', 'LSTM', 'GRU'],
@@ -89,9 +89,9 @@ if __name__ == "__main__":
                         help='Normalization to use')
     parser.add_argument('--scheduler', default=False, type=bool,
                         help='Flag to choose to use lr scheduler')
-    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 500],
+    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 1000],
                         help='Interval to be optimized')
-    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 50],
+    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 60],
                         help='Interval to be optimized')
     parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 10],
                         help='Interval to be optimized')
@@ -104,7 +104,7 @@ if __name__ == "__main__":
     parser.add_argument('--optimizer' ,default='Adam', type=str,
                         choices=['Adam', 'SGD', 'RMSProp', 'Adadelta', 'Adagrad'],
                         help='Optimizer to use')
-    parser.add_argument('--patience', default=3, type=int,
+    parser.add_argument('--patience', default=2, type=int,
                         help='Number of steps to stop train loop after no improvment in validation set')
 
     args = parser.parse_args()

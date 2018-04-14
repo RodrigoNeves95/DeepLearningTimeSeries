@@ -70,7 +70,7 @@ if __name__ == "__main__":
                         help='Number of folds for cross val')
     parser.add_argument('--fold_size', default=365, type=int,
                         help='Size in days for cross val fold')
-    parser.add_argument('--predict_steps', type=int, default=10,
+    parser.add_argument('--predict_steps', type=int, default=1,
                         help='Number of steps to forecast')
     parser.add_argument('--lr', default=0.005, type=float,
                         help='learning rate')
@@ -90,9 +90,9 @@ if __name__ == "__main__":
                         help='Normalization to use')
     parser.add_argument('--scheduler', default=False, type=bool,
                         help='Flag to choose to use lr scheduler')
-    parser.add_argument('--train_steps', nargs=2, type=int, default=[10, 500],
+    parser.add_argument('--train_steps', nargs=2, type=int, default=[50, 1000],
                         help='Interval to be optimized')
-    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 50],
+    parser.add_argument('--hidden_size', nargs=2, type=int, default=[5, 60],
                         help='Interval to be optimized')
     parser.add_argument('--num_layers', nargs=2, type=int, default=[1, 10],
                         help='Interval to be optimized')
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                         help='Interval of kernel size for TCN and QRNN models')
     parser.add_argument('--initial_point', nargs=4, type=int, default=[50, 10, 2, 10],
                         help='Initial point for optimization')
-    parser.add_argument('--N_CALLS', default=30, type=int,
+    parser.add_argument('--N_CALLS', default=40, type=int,
                         help='Number of calls for optmization')
     parser.add_argument('--RANDOM_STARTS', default=10, type=int,
                         help='Number of random starts for optimization')
@@ -111,8 +111,7 @@ if __name__ == "__main__":
                         help='Number of steps to stop train loop after no improvment in validation set')
     parser.add_argument('--steps_to_predict', type=int, default=[4, 24, 96], nargs=3,
                         help='Steps for predict using best model after optimization')
-    parser.add_argument('--steps_to_predict', type=int, default=[4, 24, 96], nargs=3,
-                        help='Steps for predict using best model after optimization')
+
 
     args = parser.parse_args()
 
@@ -132,14 +131,14 @@ if __name__ == "__main__":
     if args.model in ['TCN', 'QRNN']:
         space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
                  Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size
-                 Integer(args.num_layers[0], args.num_layers[1]),  # num_layers
+                 Integer(args.num_layers[0], args.num_layers[1]),    # num_layers
                  Integer(args.kernel_size[0], args.kernel_size[1])]  # kernel_size
         initial_point = args.initial_point
     elif args.model in ['RNN', 'LSTM', 'GRU', 'DRNN'] :
         space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
                  Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size
-                 Integer(args.num_layers[0], args.num_layers[1]), # num_layers
-                 Integer(10, 10)]  #kernel_size
+                 Integer(args.num_layers[0], args.num_layers[1]),    # num_layers
+                 Integer(10, 10)]                                    # kernel_size
         initial_point = args.initial_point
 
     res_gp = gp_minimize(objective,
@@ -153,16 +152,43 @@ if __name__ == "__main__":
     best_number_steps_train = int(res_gp.x[0])
     best_hidden_size = int(res_gp.x[1])
     best_num_layers = int(res_gp.x[2])
+
     if args.model in ['TCN', 'QRNN']:
         best_kernel_size = int(res_gp.x[3])
     else:
         best_kernel_size = 10
 
+    model = RNNTrainer(data_path=args.data_path,
+                       logger_path=path,
+                       model_name='Run_Best_Model',
+                       lr=args.lr,
+                       number_steps_train=best_number_steps_train,
+                       number_steps_predict=args.predict_steps,
+                       batch_size=args.batch_size,
+                       num_epoch=args.epochs,
+                       hidden_size=best_hidden_size,
+                       num_layers=best_num_layers,
+                       kernel_size=best_kernel_size,
+                       cell_type=args.model,
+                       train_log_interval=args.train_log,
+                       valid_log_interval=args.valid_log,
+                       use_scheduler=args.scheduler,
+                       normalizer=args.normalization,
+                       optimizer=args.optimizer,
+                       use_script=True,
+                       target_column='Power',
+                       validation_date='2015-01-01 00:00:00',
+                       test_date='2016-01-01 00:00:00',
+                       index_col=['Date'],
+                       parse_dates=True)
+
+    model.train(args.patience)
+
     for range in args.steps_to_predict:
 
         model = RNNTrainer(data_path=args.data_path,
                            logger_path=path,
-                           model_name='Run_Best_Model_' + str(range),
+                           model_name='Best_Model_Predictions_' + str(range),
                            lr=args.lr,
                            number_steps_train=best_number_steps_train,
                            number_steps_predict=range,
@@ -184,9 +210,9 @@ if __name__ == "__main__":
                            index_col=['Date'],
                            parse_dates=True)
 
-        model.train(args.patience)
-        model.get_best()
+        dir = path + '/Run_Best_Model'
+        model.get_best(dir)
+        model.model.number_steps_predict = range
         predictions, labels = model.predict()
         final_df, mse, mae = model.postprocess(predictions, labels)
-
         model.filelogger.write_results(predictions, labels, final_df, mse, mae)

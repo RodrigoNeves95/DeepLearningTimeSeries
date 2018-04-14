@@ -57,7 +57,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Script Variables')
     parser.add_argument('--SCRIPTS_FOLDER', default='/home/rneves/temp/temp_logger', type=str,
                         help='Main Folder to save all files')
-    parser.add_argument('--data_path', default='/datadrive/wind_power/wind_15min.csv', type=str,
+    parser.add_argument('--data_path', default='/datadrive/wind_power/data/wind_15min.csv', type=str,
                         help='path for data file')
     parser.add_argument('--file', default='runs', type=str,
                         help='Directory to store files')
@@ -92,7 +92,7 @@ if __name__ == "__main__":
                         help='Interval of kernel size for TCN and QRNN models')
     parser.add_argument('--initial_point', nargs=3, type=int, default=[20, 20, 8, 1],
                         help='Initial point for optimization')
-    parser.add_argument('--N_CALLS', default=30, type=int,
+    parser.add_argument('--N_CALLS', default=40, type=int,
                         help='Number of calls for optmization')
     parser.add_argument('--RANDOM_STARTS', default=10, type=int,
                         help='Number of random starts for optimization')
@@ -116,8 +116,6 @@ if __name__ == "__main__":
     NRANDOMSTARTS = args.RANDOM_STARTS
 
     run_number = 0
-
-
 
     space = [Integer(args.num_residue[0], args.num_residue[1]),# number_steps_train
              Integer(args.num_skip[0], args.num_skip[1]), # hidden_size
@@ -165,5 +163,4 @@ if __name__ == "__main__":
     model.get_best()
     predictions, labels = model.predict()
     final_df, mse, mae = model.postprocess(predictions, labels)
-
     model.filelogger.write_results(predictions, labels, final_df, mse, mae)

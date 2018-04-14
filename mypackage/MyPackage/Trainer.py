@@ -348,17 +348,21 @@ class Trainer(object):
         predictions = self.datareader.normalizer.inverse_transform(predictions)
         labels = self.datareader.normalizer.inverse_transform(labels)
 
-        mse = mean_squared_error(predictions, labels)
-        mae = mean_absolute_error(predictions, labels)
+        mse = mean_squared_error(labels, predictions)
+        mae = mean_absolute_error(labels, predictions)
 
         target = self.datareader.data.iloc[self.datareader.test_indexes[:-1]]
         results = target.assign(predictions=pd.Series(mean_predictions(predictions), index=target.index).values)
 
         return results, mse, mae
 
-    def get_best(self):
+    def get_best(self, path=None):
 
-        files = glob(self.filelogger.path + '/model_checkpoint/*')
+        if path is None:
+            files = glob(self.filelogger.path + '/model_checkpoint/*')
+        else:
+            print(path + '/model_checkpoint/*')
+            files = glob(path + '/model_checkpoint/*')
 
         best = 100
         for file in files:
@@ -373,19 +377,6 @@ class Trainer(object):
 
 if __name__ == "__main__":
 
-    import sys, warnings, traceback, torch
-
-
-    def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
-        sys.stderr.write(warnings.formatwarning(message, category, filename, lineno, line))
-        traceback.print_stack(sys._getframe(2))
-
-
-    warnings.showwarning = warn_with_traceback;
-    warnings.simplefilter('always', UserWarning);
-    torch.utils.backcompat.broadcast_warning.enabled = True
-    torch.utils.backcompat.keepdim_warning.enabled = True
-
     from MyPackage.models import WaveNetContinuosTrainer, RNNTrainer, EncoderDecoderTrainer
 
 
@@ -394,11 +385,11 @@ if __name__ == "__main__":
                                     model_name='Test_EncoderDecoder2',
                                     train_log_interval=100,
                                     valid_log_interval=100,
-                                    n_residue=10,
-                                    n_skip=20,
-                                    dilation_depth=10,
+                                    n_residue=2,
+                                    n_skip=2,
+                                    dilation_depth=2,
                                     n_repeat=1,
-                                    number_steps_predict=10,
+                                    number_steps_predict=24,
                                     lr=0.001,
                                     batch_size=256,
                                     num_epoch=1,
@@ -422,13 +413,13 @@ if __name__ == "__main__":
                        model_name='Run_Best_Model',
                        use_script=True,
                        lr=0.001,
-                       number_steps_train=500,
-                       number_steps_predict=2,
+                       number_steps_train=2,
+                       number_steps_predict=100,
                        batch_size=256,
                        num_epoch=1,
                        hidden_size=4,
-                       num_layers=2,
-                       cell_type='LSTM',
+                       num_layers=1,
+                       cell_type='RNN',
                        kernel_size=3,
                        target_column='Power',
                        validation_date='2015-01-01 00:00:00',
@@ -471,7 +462,7 @@ if __name__ == "__main__":
                                   parse_dates=True)
     '''
 
-    #model.train_cv(2, 365, 2)
+    model.train_cv(2, 90, 2)
     model.train(2)
     model.get_best()
     predictions, labels = model.predict()

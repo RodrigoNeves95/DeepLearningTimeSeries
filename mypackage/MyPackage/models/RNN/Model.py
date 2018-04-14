@@ -223,6 +223,7 @@ class RNNTrainer(Trainer):
                                            cv_train,
                                            cv_val,
                                            self.normalizer)
+
         # Initialize train generator
         self.train_generator = self.datareader.generator_train(self.batch_size,
                                                                self.target_column,

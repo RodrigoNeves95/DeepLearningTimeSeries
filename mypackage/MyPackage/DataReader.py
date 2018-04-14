@@ -126,12 +126,11 @@ class DataReader(object):
 
             self.train_steps = round((len(self.train_indexes) - self.K - self.N) / batch_size + 0.5)
             self.validation_steps = round((len(self.validation_indexes) - self.N) / batch_size + 0.5)
-            self.test_steps = round(len((self.test_indexes) - self.N) / batch_size + 0.5)
+            self.test_steps = round((len(self.test_indexes) - self.N) / batch_size + 0.5)
 
         if normalizer == 'Standardization':
             self.normalizer = StandardScaler().fit(self.data.iloc[self.train_indexes])
-
-        if normalizer == 'MixMaxScaler':
+        elif normalizer == 'MixMaxScaler':
             self.normalizer = MinMaxScaler(feature_range=(-1, 1)).fit(self.data.iloc[self.train_indexes])
 
     def preprocessing_data_cv(self,
@@ -156,8 +155,7 @@ class DataReader(object):
 
         if normalizer == 'Standardization':
             self.normalizer = StandardScaler().fit(self.data.iloc[self.train_indexes])
-
-        if normalizer == 'MixMaxScaler':
+        elif normalizer == 'MixMaxScaler':
             self.normalizer = MinMaxScaler(feature_range=(-1, 1)).fit(self.data.iloc[self.train_indexes])
 
     def generator_train(self,
@@ -282,7 +280,6 @@ class DataReader(object):
                 if normalize:
                     batch_x[batch_i] = self.normalizer.transform(test_data)
                     batch_y[batch_i] = self.normalizer.transform(test_labels.values.reshape(-1, 1))[:, 0]
-
                 else:
                     batch_x[batch_i] = test_data.values
                     batch_y[batch_i] = test_labels.values

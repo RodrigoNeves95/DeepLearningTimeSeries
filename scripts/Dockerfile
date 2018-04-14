@@ -50,6 +50,8 @@ RUN pip install jupyterlab
 
 RUN pip install --upgrade pip
 
+RUN mkdir update
+
 RUN git clone https://${GIT_USER}:${GIT_TOKEN}@github.com/Choteck/DeepLearningTimeSeries && \
     cd /DeepLearningTimeSeries && \
     pip install -e mypackage
