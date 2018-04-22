@@ -50,7 +50,7 @@ deploy() {
 RNNScript() {
     log "Deploy 3 RNN scrpits using $2 cell for 15 minutes interval!"
 
-    sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=$1 -it --rm -d \
+    sudo docker run --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=$1 -it --rm -d nano\
          -v /home/rodrigo/datadrive/wind_power/data/:/datadrive/wind_power/ \
          -v /home/rodrigo/datadrive/wind_power/results/15min/:/workspace/15min/ \
          --name RNNScript_15min_$2 \
@@ -143,14 +143,31 @@ EncDecScriptJaguar() {
         sudo docker run --runtime=nvidia -it --rm -d \
              -v /datadrive/wind_power/data/:/datadrive/wind_power/ \
              -v /datadrive/wind_power/results/15min/:/workspace/15min/ \
-             --name RNNScript_15min_$1_$VARIABLE \
+             --name EncoderDecoder_15min_$1_$VARIABLE \
              $IMAGE_NAME \
              bash -c "python EncDecScript.py --data_path /datadrive/wind_power/wind_15min.csv \
                                              --SCRIPTS_FOLDER /workspace/15min \
-                                             --file EncDecAttention_$1_$VARIABLE  \
+                                             --file EncDec_$1_$VARIABLE  \
                                              --predict_steps $VARIABLE"
     done
     [ $? != 0 ] && error "Failed!" && exit 101
 }
+
+EncDecScriptJaguarDebug() {
+    log "Deploy 3 Encoder-Decoder Script using $1 cell for 15 minutes interval!"
+
+    sudo docker run --runtime=nvidia -it --rm \
+         -v /datadrive/wind_power/data/:/datadrive/wind_power/ \
+         -v /datadrive/wind_power/results/15min/:/workspace/15min/ \
+         --name EncoderDecoder_15min_$1_debug \
+         $IMAGE_NAME \
+         bash -c "python EncDecScript.py --data_path /datadrive/wind_power/wind_15min.csv \
+                                         --SCRIPTS_FOLDER /workspace/15min \
+                                         --file EncDec_$1_$2  \
+                                         --predict_steps $2"
+
+    [ $? != 0 ] && error "Failed!" && exit 101
+}
+
 
 $*

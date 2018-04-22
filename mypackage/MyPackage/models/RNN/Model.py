@@ -46,6 +46,7 @@ class RNNModel(nn.Module):
 
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)
 
+
     def forward(self, x, hidden=None):
         outputs, hidden_state = self.encoder_cell(x, hidden)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
         outputs = self.output_layer(outputs)
@@ -192,6 +193,18 @@ class RNNTrainer(Trainer):
         # check CUDA availability
         if self.use_cuda:
             self.model.cuda()
+
+    def init_weights(self,
+                     m):
+        if type(m) in [nn.LSTM, nn.GRU, nn.RNN]:
+            for name, param in m.named_parameters():
+                if 'bias' in name:
+                    nn.init.constant(param, 0.00)
+                elif 'weight' in name:
+                    nn.init.xavier_normal(param)
+        if type(m) in [nn.Linear, nn.Conv1d]:
+            torch.nn.init.xavier_uniform(m.weight)
+            m.bias.data.fill_(0.00)
 
     def prepare_datareader(self):
         # prepare datareader

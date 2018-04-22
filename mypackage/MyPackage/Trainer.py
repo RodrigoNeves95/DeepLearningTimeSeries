@@ -68,6 +68,7 @@ class Trainer(object):
               patience):
 
         self.prepare_datareader()
+        self.model.apply(self.init_weights)
         self.filelogger.start()
         self.tensorboard = SummaryWriter(self.filelogger.path + '/tensorboard/')
         try:
@@ -203,6 +204,8 @@ class Trainer(object):
                                                                                             self.test_date)
 
             for model_number in range(number_splits):
+
+                self.model.apply(self.init_weights)
 
                 self.filelogger.start('Fold_Number{0}'.format(model_number + 1))
                 self.tensorboard = SummaryWriter(self.filelogger.path + '/tensorboard/')
@@ -367,7 +370,7 @@ class Trainer(object):
         best = 100
         for file in files:
             number = re.findall('[-+]?[.]?[\d]+(?:,\d\d\d)*[\.]?\d*(?:[eE][-+]?\d+)?', file)
-            result = float(number[1])
+            result = float(number[-1])
             if result < best:
                 best = result
                 best_file = file
