@@ -13,8 +13,46 @@ from .DRNN import DRNN
 
 SEED = 1337
 
+
 class RNNModel(nn.Module):
-    def __init__(self, input_size, output_size, number_steps_predict, kernel_size=None, num_layers=1, hidden_size=10, cell_type='LSTM'):
+    def __init__(self,
+                 input_size,
+                 output_size,
+                 number_steps_predict,
+                 kernel_size=None,
+                 num_layers=1,
+                 hidden_size=10,
+                 cell_type='LSTM'):
+
+        """
+        Class to create each model instance and forward and predict steps.
+
+        Parameters
+        ----------
+        input_size : int
+            Number of dimensions (features) in input sequence
+
+        output_size : int
+            number of dimensions (features) in output sequence
+
+        number_steps_predict : int
+            Number of steps ahead to predict
+
+        kernel_size : int
+            Kernel size for convolutional models
+
+        num_layers : int
+            Number of layers
+
+        hidden_size : int
+            Hidden size for recurrent models.
+            Number of filters used in each convolution for CNN models.
+
+        cell_type : str
+            Choose the model to implemnet
+
+        """
+
         super(RNNModel, self).__init__()
 
         self.input_size = input_size
@@ -25,7 +63,6 @@ class RNNModel(nn.Module):
         self.cell_type = cell_type
         self.output_size = output_size
         self.kernel_size = kernel_size
-
 
         assert self.cell_type in ['LSTM', 'RNN', 'GRU', 'DRNN', 'QRNN', 'TCN'], \
             'Not Implemented, choose on of the following options - ' \
@@ -46,17 +83,16 @@ class RNNModel(nn.Module):
 
         self.output_layer = nn.Linear(self.hidden_size, self.output_size)
 
-
     def forward(self, x, hidden=None):
-        outputs, hidden_state = self.encoder_cell(x, hidden)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+        # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+        outputs, hidden_state = self.encoder_cell(x, hidden)
         outputs = self.output_layer(outputs)
         return outputs
 
     def predict(self, x, hidden=None):
-
-        if self.cell_type == 'DRNN' or 'QRNN' or 'TCN':  # loop to concat output to input in last position and run all the model again
+        # loop to concat output to input in last position and run all the model again
+        if self.cell_type == 'DRNN' or 'QRNN' or 'TCN':
             predictions = []
-            output = x
             seq_len = x.shape[1]
             for step in range(self.number_steps_predict):
                 output, hidden_state = self.encoder_cell(x[:, -seq_len:, :])
@@ -68,13 +104,16 @@ class RNNModel(nn.Module):
             predictions = []
             for step in range(self.number_steps_predict):
                 if step == 0:
-                    output, hidden_state = self.encoder_cell(x, hidden)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+                    # returns output variable - all hidden states for seq_len, hidden state - last hidden state
+                    output, hidden_state = self.encoder_cell(x, hidden)
                     result = self.output_layer(output[:, -1, :])
                 else:
-                    output, hidden_state = self.encoder_cell(result.unsqueeze(1), hidden_state)  # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+                    # returns output variable - all hidden states for seq_len, hidden state - last hidden state
+                    output, hidden_state = self.encoder_cell(result.unsqueeze(1), hidden_state)
                     result = self.output_layer(output[:, -1, :])
                 predictions.append(result)
             return torch.stack(predictions, dim=1)[:, :, 0]
+
 
 class RNNTrainer(Trainer):
     def __init__(self,
@@ -87,16 +126,74 @@ class RNNTrainer(Trainer):
                  target_column,
                  batch_size,
                  num_epoch,
-                 number_features_input = 1,
-                 number_features_output = 1,
-                 kernel_size = None,
-                 loss_function = 'MSE',
-                 optimizer = 'Adam',
-                 normalizer = 'Standardization',
-                 use_scheduler = False,
-                 validation_date = None,
-                 test_date = None,
+                 number_features_input=1,
+                 number_features_output=1,
+                 kernel_size=None,
+                 loss_function='MSE',
+                 optimizer='Adam',
+                 normalizer='Standardization',
+                 use_scheduler=False,
+                 validation_date=None,
+                 test_date=None,
                  **kwargs):
+
+        """
+        Trainer class for RNN architectures + CNN models
+
+        Parameters
+        ----------
+        lr : float
+
+        number_steps_train : int
+            Sequence length for training
+
+        number_steps_predict : int
+            Sequence length for predict
+
+        hidden_size : int
+            Hidden size for recurrent models
+            Number of filters to use in convolutions models
+
+        num_layers : int
+            Number of layers
+
+        cell_type : str
+            Model to use
+
+        target_column : str
+            Column to predict
+
+        batch_size : int
+
+        num_epoch : int
+
+        number_features_input : int
+
+        number_features_output : int
+
+        kernel_size : int, optional, default : None
+            Kernel size in convolution models
+
+        loss_function : str, default : Adam
+            Loss function to use. Currently implemented : MSE, MAE
+
+        optimizer : str, default : MSE
+            Optimizer to use. Currently implemented : Adam, SGD, RMSProp, Adadelta, Adagrad
+
+        normalizer : str, default : Standardization
+            Normalizer for the data
+
+        use_scheduler : boolean, default : False
+            If True use learning rate scheduler
+
+        validation_date : int or datetime
+            Validation split
+
+        test_date : int or datetime
+            Test split
+
+        kwargs : **
+        """
 
         super(RNNTrainer, self).__init__(**kwargs)
 
@@ -123,6 +220,10 @@ class RNNTrainer(Trainer):
         self.target_column = target_column
 
         self.file_name = self.filelogger.file_name
+
+        self.train_generator = None
+        self.validation_generator = None
+        self.test_generator = None
 
         # Save metadata model
         metadata_key = ['number_steps_train',
@@ -194,8 +295,8 @@ class RNNTrainer(Trainer):
         if self.use_cuda:
             self.model.cuda()
 
-    def init_weights(self,
-                     m):
+    @staticmethod
+    def init_weights(m):
         if type(m) in [nn.LSTM, nn.GRU, nn.RNN]:
             for name, param in m.named_parameters():
                 if 'bias' in name:
@@ -228,14 +329,16 @@ class RNNTrainer(Trainer):
             self.test_generator = self.datareader.generator_test(self.batch_size,
                                                                  self.target_column)
 
-    def prepare_datareader_cv(self, cv_train, cv_val):
+    def prepare_datareader_cv(self,
+                              cv_train,
+                              cv_val):
         # prepare datareader
         self.datareader.preprocessing_data_cv(self.number_steps_train,
-                                           self.number_steps_predict,
-                                           self.batch_size,
-                                           cv_train,
-                                           cv_val,
-                                           self.normalizer)
+                                              self.number_steps_predict,
+                                              self.batch_size,
+                                              cv_train,
+                                              cv_val,
+                                              self.normalizer)
 
         # Initialize train generator
         self.train_generator = self.datareader.generator_train(self.batch_size,
@@ -246,11 +349,9 @@ class RNNTrainer(Trainer):
             self.validation_generator = self.datareader.generator_validation(self.batch_size,
                                                                              self.target_column)
 
-
     def training_step(self):
 
         self.model_optimizer.zero_grad()
-        loss = 0
         X, Y = next(self.train_generator)
         length = X.shape[0]
         Y = np.concatenate((X[:, 1:, 0], np.expand_dims(Y[:, 0], axis=1)), axis=1)

@@ -9,12 +9,12 @@ from MyPackage.models import EncoderDecoderTrainer
 
 global run_number
 
+
 def objective(params):
     try:
         model = get_model(params)
         scores = model.train_cv(args.folds, args.fold_size, args.patience)
         return scores
-
     except:
         return 10000.0
 
@@ -53,6 +53,7 @@ def get_model(params):
                                   parse_dates=True)
 
     return model
+
 
 if __name__ == "__main__":
 
@@ -121,7 +122,6 @@ if __name__ == "__main__":
     NRANDOMSTARTS = args.RANDOM_STARTS
 
     run_number = 0
-
 
     space = [Integer(args.train_steps[0], args.train_steps[1]),  # number_steps_train
              Integer(args.hidden_size[0], args.hidden_size[1]),  # hidden_size

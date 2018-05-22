@@ -9,7 +9,24 @@ class FileLogger(object):
                  file_name,
                  model_name,
                  script):
+        """
+        File logger class. This class controls the file system.
 
+        Parameters
+        ----------
+        path : str
+            Path to models storage directory
+
+        file_name : str
+            File name for current model
+
+        model_name : str
+            Model Run name
+
+        script : boolean
+            If True file logging for script, else for notebook
+
+        """
         if script is not True:
             self.path = path + file_name + '/'
             self.load_model = None
@@ -81,6 +98,10 @@ class FileLogger(object):
                     epoch,
                     batch,
                     loss):
+        """
+        Training phase logger.
+
+        """
 
         if batch % log_interval == 0:
             self.update_file(step,
@@ -95,6 +116,10 @@ class FileLogger(object):
                     epoch,
                     batch,
                     loss):
+        """
+        Validation phase logger.
+
+        """
 
         if batch % log_interval == 0:
             self.update_file(step,
@@ -109,6 +134,10 @@ class FileLogger(object):
                    epoch,
                    batch,
                    loss):
+        """
+        Test phase logger.
+
+        """
 
         if batch % log_interval == 0:
             self.update_file(step,
@@ -179,6 +208,13 @@ class FileLogger(object):
     def start(self,
               name = None):
 
+        """
+        Check for existent files
+
+        -------
+
+        """
+
         if name is not None:
 
             self.path = self.file_path + '/' + name
@@ -200,6 +236,13 @@ class FileLogger(object):
                       dataframe,
                       mse,
                       mae):
+
+        """
+        This function has the objective of writing any final results desired
+
+        -------
+
+        """
 
         np.save(self.path + '/predictions.npy', predictions)
         np.save(self.path + '/labels.npy', labels)

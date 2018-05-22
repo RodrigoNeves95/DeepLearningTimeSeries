@@ -12,8 +12,13 @@ from MyPackage import Trainer
 
 SEED = 1337
 
+
 class Encoder(nn.Module):
-    def __init__(self, input_size, num_layers=2, hidden_size=10, cell_type='LSTM'):
+    def __init__(self,
+                 input_size,
+                 num_layers=2,
+                 hidden_size=10,
+                 cell_type='LSTM'):
         super(Encoder, self).__init__()
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -30,12 +35,17 @@ class Encoder(nn.Module):
             self.encoder_cell = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
 
     def forward(self, x, hidden=None):
-        output, hidden_state = self.encoder_cell(x, hidden)  #returns output variable - all hidden states for seq_len, hindden state - last hidden state
+        # returns output variable - all hidden states for seq_len, hindden state - last hidden state
+        output, hidden_state = self.encoder_cell(x, hidden)
 
         return output, hidden_state
 
+
 class Attn(nn.Module):
-    def __init__(self, method, hidden_size):
+    def __init__(self,
+                 method,
+                 hidden_size):
+
         super(Attn, self).__init__()
         self.method = method
         self.hidden_size = hidden_size
@@ -45,14 +55,14 @@ class Attn(nn.Module):
         self.v.data.normal_(mean=0, std=stdv)
 
     def forward(self, hidden, encoder_outputs):
-        '''
+        """
         :param hidden:
             previous hidden state of the decoder, in shape (layers*directions, B, H)
         :param encoder_outputs:
             encoder outputs from Encoder, in shape (T, B, H)
         :return
             attention energies in shape (B, T)
-        '''
+        """
 
         max_len = encoder_outputs.size(1)  # check dimensions, len dimension
         this_batch_size = encoder_outputs.size(0)  # batch size dimensio
@@ -135,8 +145,8 @@ class EncoderDecoder(nn.Module):
                  cell_type_decoder,
                  number_features_output,
                  use_attention=False):
-
         super(EncoderDecoder, self).__init__()
+
         self.use_attention = use_attention
         self.number_steps_predict = number_steps_predict
         self.encoder = Encoder(number_features_encoder, num_layers, hidden_size_encoder, cell_type_encoder)
@@ -146,6 +156,9 @@ class EncoderDecoder(nn.Module):
             self.decoder = Decoder((number_features_decoder + hidden_size_decoder), number_features_output,
                                    number_steps_predict, num_layers, hidden_size_decoder, cell_type_decoder)
             self.attention = Attn('concat', hidden_size_encoder)
+
+    def forward(self):
+        pass
 
     def train_step(self, X_encoder, X_decoder):
 
@@ -220,6 +233,68 @@ class EncoderDecoderTrainer(Trainer):
                  validation_date=None,
                  test_date=None,
                  **kwargs):
+        """
+        Trainer class for encoder-decoder models
+
+        Parameters
+        ----------
+        lr : float
+
+        number_steps_train : int
+            Sequence length for training
+
+        number_steps_predict : int
+            Sequence length for predict
+
+        hidden_size_encoder : int
+
+        hidden_size_decoder : int
+
+        num_layers : int
+
+        cell_type_encoder : str
+            model to implement in encoder
+
+        cell_type_decoder : str
+            model to implement in decoder
+
+        use_attention : boolean, default, False
+            If True use attention system
+
+        target_column : str
+            Column to predict
+
+        batch_size : int
+
+        num_epoch : int
+
+        number_features_encoder : int
+
+        number_features_decoder : int
+
+        number_features_output : int
+
+        loss_function : str, default : Adam
+            Loss function to use. Currently implemented : MSE, MAE
+
+        optimizer : str, default : MSE
+            Optimizer to use. Currently implemented : Adam, SGD, RMSProp, Adadelta, Adagrad
+
+        normalizer : str, default : Standardization
+            Normalizer for the data
+
+        use_scheduler : boolean, default : False
+            If True use learning rate scheduler
+
+        validation_date : int or datetime
+            Validation split
+
+        test_date : int or datetime
+            Test split
+
+        kwargs : **
+        """
+
         super(EncoderDecoderTrainer, self).__init__(**kwargs)
 
         torch.manual_seed(SEED)
@@ -248,6 +323,10 @@ class EncoderDecoderTrainer(Trainer):
         self.test_date = test_date
 
         self.file_name = self.filelogger.file_name
+
+        self.train_generator = None
+        self.validation_generator = None
+        self.test_generator = None
 
         # Save metadata model
         metadata_key = ['number_steps_train',
@@ -279,7 +358,6 @@ class EncoderDecoderTrainer(Trainer):
         metadata_dict = {}
         for i in range(len(metadata_key)):
             metadata_dict[metadata_key[i]] = metadata_value[i]
-
 
         # check if it's to load model or not
         if self.filelogger.load_model is not None:
@@ -322,8 +400,8 @@ class EncoderDecoderTrainer(Trainer):
             if self.use_cuda:
                 self.model.cuda()
 
-    def init_weights(self,
-                     m):
+    @staticmethod
+    def init_weights(m):
         if type(m) in [nn.LSTM, nn.GRU, nn.RNN]:
             for name, param in m.named_parameters():
                 if 'bias' in name:
@@ -356,8 +434,9 @@ class EncoderDecoderTrainer(Trainer):
             self.test_generator = self.datareader.generator_test(self.batch_size,
                                                                  self.target_column)
 
-
-    def prepare_datareader_cv(self, cv_train, cv_val):
+    def prepare_datareader_cv(self,
+                              cv_train,
+                              cv_val):
         # prepare datareader
         self.datareader.preprocessing_data_cv(self.number_steps_train,
                                               self.number_steps_predict,
@@ -377,7 +456,6 @@ class EncoderDecoderTrainer(Trainer):
     def training_step(self):
 
         self.model_optimizer.zero_grad()
-        loss = 0
         X, Y = next(self.train_generator)
         length = X.shape[0]
         X = Variable(torch.from_numpy(X)).float().cuda()

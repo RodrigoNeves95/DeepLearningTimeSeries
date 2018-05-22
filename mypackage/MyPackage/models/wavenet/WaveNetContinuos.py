@@ -3,15 +3,22 @@ from torch import nn
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import *
 import torch.optim as optim
-
+import torch.functional as F
 import numpy as np
 
 from MyPackage import Trainer
 
 SEED = 1337
 
+
 class WaveNetModelContinuos(nn.Module):
-    def __init__(self, number_features, number_steps_predict, n_residue=32, n_skip=512, dilation_depth=10, n_repeat=5):
+    def __init__(self,
+                 number_features,
+                 number_steps_predict,
+                 n_residue=32,
+                 n_skip=512,
+                 dilation_depth=10,
+                 n_repeat=5):
         super(WaveNetModelContinuos, self).__init__()
 
         self.dilation_depth = dilation_depth
@@ -44,7 +51,11 @@ class WaveNetModelContinuos(nn.Module):
 
         self.conv_post_2 = nn.Conv1d(in_channels=n_skip, out_channels=1, kernel_size=1)
 
-    def forward(self, input):
+        self.receptive_field = None
+        self.output_receptive_field = None
+
+    def forward(self,
+                input):
 
         output = input.permute(0, 2, 1)
         output = self.from_input(output)
@@ -58,16 +69,16 @@ class WaveNetModelContinuos(nn.Module):
         return output
 
     def postprocess(self, input):
-        output = nn.functional.elu(input)
+        output = F.elu(input)
         output = self.conv_post_1(output)
-        output = nn.functional.elu(output)
+        output = F.elu(output)
         output = self.conv_post_2(output)
         return output
 
     def residue_forward(self, input, conv_sigmoid, conv_tanh, skip_scale, residue_scale):
         output = input
         output_sigmoid, output_tanh = conv_sigmoid(output), conv_tanh(output)
-        output = nn.functional.sigmoid(output_sigmoid) * nn.functional.tanh(output_tanh)
+        output = F.sigmoid(output_sigmoid) * F.tanh(output_tanh)
         skip = skip_scale(output)
         output = residue_scale(output)
         output = output + input[:, :, -output.size(2):]
@@ -95,7 +106,7 @@ class WaveNetModelContinuos(nn.Module):
             x = res[:, -self.receptive_field:, :]
             y = self.forward(x)
             i = y.permute(0, 2, 1)
-            del (y)
+            del y
             res = torch.cat((res, i[:, -1:, :]), dim=1)
         return res[:, -self.number_steps_predict:, 0]
 
@@ -122,6 +133,59 @@ class WaveNetContinuosTrainer(Trainer):
                  load_model_name=None,
                  **kwargs):
 
+        """
+        Wavenet Trainer
+
+        Parameters
+        ----------
+        n_residue : int
+            Number of residual connections
+
+        n_skip : int
+            Number of skip connections
+
+        dilation_depth : int
+            Dilation depth (Number of layers)
+
+        n_repeat : int
+            Repetition number
+
+        number_steps_predict : int
+
+        lr : float
+
+         target_column : str
+            Column to predict
+
+        batch_size : int
+
+        num_epoch : int
+
+        number_features_input : int
+
+        number_features_output : int
+
+        loss_function : str, default : Adam
+            Loss function to use. Currently implemented : MSE, MAE
+
+        optimizer : str, default : MSE
+            Optimizer to use. Currently implemented : Adam, SGD, RMSProp, Adadelta, Adagrad
+
+        normalizer : str, default : Standardization
+            Normalizer for the data
+
+        use_scheduler : boolean, default : False
+            If True use learning rate scheduler
+
+        validation_date : int or datetime
+            Validation split
+
+        test_date : int or datetime
+            Test split
+
+        kwargs : **
+        """
+
         super(WaveNetContinuosTrainer, self).__init__(**kwargs)
 
         torch.manual_seed(SEED)
@@ -145,6 +209,9 @@ class WaveNetContinuosTrainer(Trainer):
         self.test_date = test_date
         self.load_model_name = load_model_name
 
+        self.train_generator = None
+        self .validation_generator = None
+        self.test_generator = None
 
         # check if it's to load model or not
         if self.filelogger.load_model is not None:
@@ -216,8 +283,8 @@ class WaveNetContinuosTrainer(Trainer):
         if self.use_cuda:
             self.model.cuda()
 
-    def init_weights(self,
-                     m):
+    @staticmethod
+    def init_weights(m):
         if type(m) in [nn.LSTM, nn.GRU, nn.RNN]:
             for name, param in m.named_parameters():
                 if 'bias' in name:
@@ -228,10 +295,8 @@ class WaveNetContinuosTrainer(Trainer):
             torch.nn.init.xavier_uniform(m.weight)
             m.bias.data.fill_(0.00)
 
-
     def prepare_datareader(self):
         # prepare datareader
-
 
         self.datareader.preprocessing_data(self.number_steps_train,
                                            self.number_steps_predict,

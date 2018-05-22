@@ -15,6 +15,7 @@ from MyPackage.utils import mean_predictions
 from tensorboardX import SummaryWriter
 from glob import glob
 
+
 class Trainer(object):
     def __init__(self,
                  data_path,
@@ -25,6 +26,35 @@ class Trainer(object):
                  load_model_name=None,
                  use_script=True,
                  **kwargs):
+
+        """
+        Base class for all models. This class implemnts training, validation and prediction
+        loops.
+
+        Parameters
+        ----------
+        data_path : str
+            Path to data file
+
+        logger_path : str
+            Path to models storage directory
+
+        model_name : str
+            Name for current model
+
+        train_log_interval : int
+            Train log sampling rate
+
+        valid_log_interval : int
+            Validation log samplig rate
+
+        load_model_name : str, optional, default : None
+            Path to model name to load
+
+        use_script : boolean, optional, default : True
+            If True filelogger initialze as a script.
+            If False initilize for notebook
+        """
 
         # Data Reader
         self.datareader = DataReader(data_path,
@@ -43,6 +73,9 @@ class Trainer(object):
         self.model_name = model_name
         self.train_log_interval = train_log_interval
         self.valid_log_interval = valid_log_interval
+
+        self.model = None
+        self.tensorboard = None
 
     def save(self,
              model_name):
@@ -67,10 +100,16 @@ class Trainer(object):
     def train(self,
               patience):
 
+        """
+        Training loop to train models
+
+        """
+
         self.prepare_datareader()
         self.model.apply(self.init_weights)
         self.filelogger.start()
         self.tensorboard = SummaryWriter(self.filelogger.path + '/tensorboard/')
+
         try:
             training_step = 0
             validation_step = 0
@@ -196,6 +235,10 @@ class Trainer(object):
             sys.exit(0)
 
     def train_cv(self, number_splits, days, patience):
+        """
+        Train with Cross-Validation
+
+        """
 
         try:
             mean_score = []
@@ -331,6 +374,11 @@ class Trainer(object):
 
     def predict(self):
 
+        """
+        Prediction loop
+
+        """
+
         self.prepare_datareader()
 
         predictions = []
@@ -347,7 +395,6 @@ class Trainer(object):
 
     def postprocess(self, predictions, labels):
 
-        print(predictions.shape, labels.shape)
         predictions = self.datareader.normalizer.inverse_transform(predictions)
         labels = self.datareader.normalizer.inverse_transform(labels)
 
@@ -376,6 +423,24 @@ class Trainer(object):
                 best_file = file
 
         self.load(best_file)
+
+    def init_weights(self):
+        raise NotImplementedError
+
+    def prepare_datareader(self):
+        raise NotImplementedError
+
+    def prepare_datareader_cv(self):
+        raise NotImplementedError
+
+    def traning_step(self):
+        raise NotImplementedError
+
+    def evaluation_steo(self):
+        raise NotImplementedError
+
+    def prediction_steo(self):
+        raise NotImplementedError
 
 
 if __name__ == "__main__":
