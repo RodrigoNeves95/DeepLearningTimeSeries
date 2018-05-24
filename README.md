@@ -52,7 +52,7 @@ pip install -e mypackage
 
 ## Recurrent Architecures + TCN and QRNN
 
-This script will train the `model_to_run`, where the skopt package will optimize the hyperparameters. Then the best model will be used on the test set. The results are saved on `models_storage_folder/model_to_run/Best_Model_Predictions_[4, 24 or 96]/`
+This script will use the `model_to_run` to train and make predictions, where the skopt package will optimize the hyperparameters. Then the best model will be used on the test set. The results are saved on `models_storage_folder/model_to_run/Best_Model_Predictions_[4, 24 or 96]/`
 
 In this case the same model is used to predict the three different horizons. Check the argparse help for changng other variables.
 
