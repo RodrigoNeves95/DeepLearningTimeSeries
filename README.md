@@ -9,10 +9,7 @@ power in the Portuguese power system. It was sampled at a 15 minutes resolution 
 of 2010 until the last day of 2016. The data collected pertains to all wind farms that are connected to
 REN’s telemetry system. Data is under `data` folder.
 
-Reference-style: 
-![alt text][logo]
-
-[logo]: https://github.com/RodrigoNeves95/DeepLearningTimeSeries/tree/master/figures/WindPower.png "Wind Power Example"
+![alt text](https://github.com/RodrigoNeves95/DeepLearningTimeSeries/blob/master/figures/WindPower.png "Wind Power Example")
 
 # Objective
 
@@ -74,15 +71,20 @@ This script will use the `model_to_run` to train and make predictions, where the
 python EncDecScript.py --data_path path_to_data \
                        --SCRIPTS_FOLDER models_storage_folder \
                        --model model_to_run \
-                       --file file_name
+                       --file file_name \
+                       --use_attention True/False \
+                       --predict_steps [4, 24 or 96]
 ```
 
 ## Wavenet
+
+This script will use the `model_to_run` to train and make predictions, where the skopt package will optimize the hyperparameters. Then the best model will be used on the test set. The results are saved on `models_storage_folder/model_to_run/Run_Best_Model_[4, 24 or 96]/`
 
 ```
 python WaveNetScript.py --data_path path_to_data \
                         --SCRIPTS_FOLDER models_storage_folder \
                         --model model_to_run \
-                        --file file_name
+                        --file file_name \
+                        --predict_steps [4, 24 or 96]
 ```
 
